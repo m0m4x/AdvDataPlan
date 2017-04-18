@@ -1,0 +1,67 @@
+        /*
+        findAndHookMethod("com.android.settings.DataUsageSummary.CycleEditorFragment", lpparam.classLoader, "onCreateDialog", "android.os.Bundle" , new XC_MethodHook() {
+
+            @Override
+            protected void beforeHookedMethod(XC_MethodHook.MethodHookParam param) throws Throwable {
+                // this will be called before the clock was updated by the original method
+                XposedBridge.log("HOOK before onCreateDialog CycleEditorFragment !");
+
+
+            }
+            @RequiresApi(api = Build.VERSION_CODES.M)
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                // this will be called after the clock was updated by the original method
+                XposedBridge.log("HOOK after onCreateDialog CycleEditorFragment !");
+                DialogFragment mCycleEditorFragment = (DialogFragment) param.thisObject;    //CycleEditorFragment
+
+                    View viewDialog = (View) XposedHelpers.callMethod(mCycleEditorFragment,"getView"); //getView();
+                    final Context context = mCycleEditorFragment.getContext();              //SubSettings
+
+                Fragment target = mCycleEditorFragment.getTargetFragment();
+                Object editor = XposedHelpers.getObjectField(target, "mPolicyEditor");      //type NetworkPolicyEditor
+                Bundle bundle = (Bundle) (XposedHelpers.callMethod(mCycleEditorFragment, "getArguments"));
+                Object template = bundle.getParcelable("template");                         //type NetworkTemplate
+                int cycleDay = (int) XposedHelpers.callMethod(editor, "getPolicyCycleDay", template);
+
+                XposedBridge.log("HOOK cycleDay - " + cycleDay + " !");
+
+                //Salva valori
+                //XposedHelpers.setAdditionalStaticField(mCycleEditorFragment,"","");
+
+                final AlertDialog.Builder builder = new AlertDialog.Builder(context);
+                final LayoutInflater dialogInflater = LayoutInflater.from(builder.getContext());
+                final View view = dialogInflater.inflate(R.layout.testlayout, null, false);
+                builder.setView(view);
+                builder.create();
+
+                final DatePicker mDatePicker1 = (DatePicker)  XposedHelpers.callMethod( view, "findViewById" , R.id.datePicker );
+                mDatePicker1.updateDate(2017,6,21);
+
+
+
+
+
+                /*DatePicker mDatePicker = (DatePicker) XposedHelpers.getObjectField(
+                        viewSubSettings, "datePicker");
+                NumberPicker mNumberPicker = (NumberPicker) XposedHelpers.getObjectField(
+                        viewSubSettings, "cycle_days");
+                NumberPicker defNumberPicker = (NumberPicker) XposedHelpers.getObjectField(
+                        viewSubSettings, "cycle_day");*/
+                /*int monthDay = defNumberPicker.getValue();
+                Calendar today = Calendar.getInstance();
+                today.set(Calendar.DAY_OF_MONTH, monthDay);
+                int year=today.get(Calendar.YEAR);
+                int month=today.get(Calendar.MONTH);
+                int day=today.get(Calendar.DAY_OF_MONTH);
+                mDatePicker.updateDate(year, month, day);*/
+
+                //final Class DataUsageSuammary = XposedHelpers.findClass("com.android.settings.DataUsageSummary", lpparam.classLoader);
+/*
+                mNumberPicker.setMinValue(1);
+                mNumberPicker.setMaxValue(31);
+                mNumberPicker.setValue(1);
+                mNumberPicker.setWrapSelectorWheel(true);* /
+            }
+        });
+        */
