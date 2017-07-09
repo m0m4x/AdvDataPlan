@@ -13,7 +13,7 @@
             android:value="true" />
         <meta-data
             android:name="xposeddescription"
-            android:value="Permit to change Data Usage Cycle date range" />
+            android:value="Permit to change Mobile Data Usage Cycle date range." />
         <meta-data
             android:name="xposedminversion"
             android:value="53" />
