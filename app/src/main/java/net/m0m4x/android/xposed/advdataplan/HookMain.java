@@ -3,6 +3,7 @@ package net.m0m4x.android.xposed.advdataplan;
  * Created by max on 09/04/2017.
  */
 
+import android.annotation.TargetApi;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.DialogFragment;
@@ -10,9 +11,7 @@ import android.app.Fragment;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.res.XModuleResources;
-import android.content.res.XResources;
 import android.os.Build;
-import android.support.annotation.RequiresApi;
 import android.text.format.Time;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -108,7 +107,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
         Hook Layout
         */
         resparam.res.hookLayout("com.android.settings", "layout", "data_usage_cycle_editor", new XC_LayoutInflated() {
-            @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR1)
+            @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
             @Override
             public void handleLayoutInflated(LayoutInflatedParam liparam) throws Throwable {
 
@@ -371,7 +370,6 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
             */
             findAndHookMethod("com.android.settings.DataUsageSummary.CycleEditorFragment", lpparam.classLoader, "onCreateDialog", "android.os.Bundle" , new XC_MethodReplacement() {
 
-                @RequiresApi(api = Build.VERSION_CODES.M)
                 @Override
                 protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
 
