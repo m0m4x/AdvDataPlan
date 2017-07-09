@@ -9,6 +9,8 @@ import android.app.DialogFragment;
 import android.app.Fragment;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.res.XModuleResources;
+import android.content.res.XResources;
 import android.os.Build;
 import android.support.annotation.RequiresApi;
 import android.text.format.Time;
@@ -56,6 +58,13 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
     int R_id_cycle_days;
     int R_id_cycle_day;
 
+    int modR_strings_dataplan_days;
+    int modR_strings_dataplan_day;
+    int modR_strings_nr1_daily;
+    int modR_strings_nr7_weekly;
+    int modR_strings_nr30_fixedmonth;
+    int modR_strings_nr31_monthly;
+
     @Override
     public void initZygote(StartupParam startupParam) throws Throwable {
         MODULE_PATH = startupParam.modulePath;
@@ -68,6 +77,17 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
             return;
         }
         XposedBridge.log("HOOK RES init -  " + resparam.packageName + " !");
+
+        /*
+        Get ID of module resources
+         */
+        XModuleResources modRes = XModuleResources.createInstance(MODULE_PATH, resparam.res);
+        modR_strings_dataplan_days = resparam.res.addResource(modRes, R.string.dataplan_days);
+        modR_strings_dataplan_day = resparam.res.addResource(modRes, R.string.dataplan_day);
+        modR_strings_nr1_daily = resparam.res.addResource(modRes, R.string.nr1_daily);
+        modR_strings_nr7_weekly = resparam.res.addResource(modRes, R.string.nr7_weekly);
+        modR_strings_nr30_fixedmonth = resparam.res.addResource(modRes, R.string.nr30_fixedmonth);
+        modR_strings_nr31_monthly = resparam.res.addResource(modRes, R.string.nr31_monthly);
 
         /*
         Get ID of native resources
@@ -123,6 +143,14 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
                 //layout 1
                 LinearLayout res_layout1 = new LinearLayout(context);
                 res_layout1.setOrientation(LinearLayout.HORIZONTAL);
+                TextView l1_txt = new TextView(context);
+                LinearLayout.LayoutParams l1_txt_lp = new LinearLayout.LayoutParams( LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+                l1_txt_lp.gravity = Gravity.CENTER_VERTICAL;
+                l1_txt_lp.setMarginStart(i16dip);
+                l1_txt.setLayoutParams(l1_txt_lp);
+                l1_txt.setGravity(Gravity.CENTER_VERTICAL);
+                //l2_txt.setTextAppearance(context, android.R.style.TextAppearance_DeviceDefault_Medium);
+                l1_txt.setText(modR_strings_dataplan_day);
                 DatePickerDialog l1_dat = new DatePickerDialog(context, android.R.style.Theme_Holo_Light_Dialog, null, 2017,04,16);
                 l1_dat.getDatePicker().findViewById(context.getResources().getIdentifier("year","id","android")).setVisibility(View.GONE);
                 l1_dat.getDatePicker().setId(View.generateViewId());
@@ -131,6 +159,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
                 l1_dat.getDatePicker().setCalendarViewShown(false);
                 l1_dat.getDatePicker().setSpinnersShown(true);
                 //l1_dat.getDatePicker().setVisibility(View.GONE);
+                res_layout1.addView(l1_txt);
                 res_layout1.addView(l1_dat.getDatePicker());
 
                 //layout 2
@@ -143,7 +172,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
                 l2_txt.setLayoutParams(l2_txt_lp);
                 l2_txt.setGravity(Gravity.CENTER_VERTICAL);
                 //l2_txt.setTextAppearance(context, android.R.style.TextAppearance_DeviceDefault_Medium);
-                l2_txt.setText("Data Plan days:");
+                l2_txt.setText(modR_strings_dataplan_days);
                 NumberPicker l2_num = new NumberPicker(context);
                 l2_num.setId(View.generateViewId());
                 R_id_cycle_days = l2_num.getId();
@@ -420,7 +449,10 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
 
                     final NumberPicker cycleDaysPicker = (NumberPicker) view.findViewById(R_id_cycle_days);
                     String[] values = new String[100]; for (int i = 0; i < 100; ++i) {values[i] = ""+(i+1);}
-                    values[0] = "1 - Daily"; values[6] = "7 - Weekly"; values[29] = "30 - Italian Monthly"; values[30] = "31 - Monthly";
+                    values[0] = context.getString(modR_strings_nr1_daily);
+                    values[6] = context.getString(modR_strings_nr7_weekly);
+                    values[29] = context.getString(modR_strings_nr30_fixedmonth);
+                    values[30] = context.getString(modR_strings_nr31_monthly);
                     cycleDaysPicker.setDisplayedValues( values );
                     cycleDaysPicker.setMinValue(1);
                     cycleDaysPicker.setMaxValue(100);
