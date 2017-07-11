@@ -1,6 +1,6 @@
 # Advanced Data Plan 
 Xposed Framework module<br>
-Permit to change Data Usage Cycle date range
+Change Data Usage Cycle date range
 
 Features
 ========
@@ -23,7 +23,6 @@ Screenshot
   <img alt="pict3" src="https://github.com/m0m4x/AdvDataPlan/blob/master/screenshot/3.png?raw=true" width="250"/>
 </p>
 
-Know Issues/TODO
-================
-
-* Implement Data Usage Info Tile in Status Bar
+Know issues
+===========
+* Not Working on TouchWiz at the moment
