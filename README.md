@@ -8,7 +8,7 @@ Features
 * Calibrate Android stock Data Usage Summary with your mobile plan
 * Check your data usage without 3-party Apps
 * Set Daily or Weekly mobile data plan
-* Set Data Plan specifying a costum duration in days
+* Set Data Plan specifying a custom duration in days
 
 Requirements
 ============
