@@ -43,12 +43,13 @@ import de.robv.android.xposed.callbacks.XC_LayoutInflated;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
 import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
+import static java.lang.Boolean.TRUE;
 import static java.lang.Math.abs;
 
 
 public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, IXposedHookInitPackageResources {
 
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
 
     /****************************
         RESOURCES Hooking
@@ -217,8 +218,11 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
         /*
             NetworkPolicy Classes - Compute cycle Boundaries
          */
-        if(         lpparam.packageName.equals("com.android.settings")
-                ||  lpparam.packageName.equals("android")) {
+        if(         lpparam.packageName.equals("android")
+                ||  lpparam.packageName.equals("com.android.systemui")
+                ||  lpparam.packageName.equals("com.android.settings")
+                ||  lpparam.packageName.equals("com.android.providers.settings")
+                ){
             if(DEBUG) XposedBridge.log("HOOK NetworkPolicyManager methods! (pkg:"+lpparam.packageName+")");
 
             final Class<?> NetworkPolicyManager = XposedHelpers.findClass(
@@ -570,6 +574,12 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
     private static long mComputeLastCycleBoundary(long currentTime, int cycle_day) {
         // Get Preferences
         Calendar pref_cycleDate = Calendar.getInstance();
+        //Set no hour
+        pref_cycleDate.set(Calendar.HOUR_OF_DAY, 0);
+        pref_cycleDate.set(Calendar.MINUTE, 0);
+        pref_cycleDate.set(Calendar.SECOND, 0);
+        pref_cycleDate.set(Calendar.MILLISECOND, 0);
+
         int pref_cycleDays = 31;
         // test cycle_day of NetworkPolicy
         if(cycle_day < 31){
@@ -596,9 +606,9 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
         }
 
         //Debug - Wait... What is the request?
-        Format format = new SimpleDateFormat("dd/MM/yyyy");
-        if(DEBUG) XposedBridge.log("HOOK REQ LAST Cycle with prefTime:"+format.format(new Date(pref_cycleDate.getTimeInMillis()))+
-                                    "*"+pref_cycleDays+"  for currentTime:"+format.format(new Date(currentTime)));
+        if(DEBUG) { Format format = new SimpleDateFormat("dd/MM/yyyy");
+                    XposedBridge.log("HOOK REQ LAST Cycle with prefTime:"+format.format(new Date(pref_cycleDate.getTimeInMillis()))+
+                                    "*"+pref_cycleDays+"  for currentTime:"+format.format(new Date(currentTime))); }
 
         // Approach to date currentTime, when i am close choose Last <- or Next ->
         Calendar cycleDate = (Calendar) pref_cycleDate.clone();
@@ -611,9 +621,10 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
         if(cycleDate.getTimeInMillis()>=currentTime) cycleDate.add(Calendar.DAY_OF_YEAR, -pref_cycleDays);
 
         //Debug - Ok... That's my result.
-        if(DEBUG) XposedBridge.log("HOOK       from prefTime:"+format.format(new Date(pref_cycleDate.getTimeInMillis()))+
-                " LAST to currentTime:"+format.format(new Date(currentTime))+
-                " is "+format.format(new Date(cycleDate.getTimeInMillis())) );
+        if(DEBUG) { Format format = new SimpleDateFormat("dd/MM/yyyy");
+                    XposedBridge.log("HOOK       from prefTime:"+format.format(new Date(pref_cycleDate.getTimeInMillis()))+
+                    " LAST to currentTime:"+format.format(new Date(currentTime))+
+                    " is "+format.format(new Date(cycleDate.getTimeInMillis())) ); }
 
         //Return Last
         return cycleDate.getTimeInMillis();
@@ -622,6 +633,12 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
     private static long mComputeNextCycleBoundary(long currentTime, int cycle_day) {
         // Get Preferences
         Calendar pref_cycleDate = Calendar.getInstance();
+        //Set no hour
+        pref_cycleDate.set(Calendar.HOUR_OF_DAY, 0);
+        pref_cycleDate.set(Calendar.MINUTE, 0);
+        pref_cycleDate.set(Calendar.SECOND, 0);
+        pref_cycleDate.set(Calendar.MILLISECOND, 0);
+
         int pref_cycleDays = 31;
         // test cycle_day of NetworkPolicy
         if(cycle_day < 31){
@@ -648,9 +665,9 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
         }
 
         //Debug - Wait... What is the request?
-        Format format = new SimpleDateFormat("dd/MM/yyyy");
-        if(DEBUG) XposedBridge.log("HOOK REQ NEXT Cycle with prefTime:"+format.format(new Date(pref_cycleDate.getTimeInMillis()))+
-                "*"+pref_cycleDays+"  for currentTime:"+format.format(new Date(currentTime)));
+        if(DEBUG) { Format format = new SimpleDateFormat("dd/MM/yyyy");
+                    XposedBridge.log("HOOK REQ NEXT Cycle with prefTime:"+format.format(new Date(pref_cycleDate.getTimeInMillis()))+
+                    "*"+pref_cycleDays+"  for currentTime:"+format.format(new Date(currentTime))); }
 
         // Approach to date currentTime, when i am close choose Last <- or Next ->
         Calendar cycleDate = (Calendar) pref_cycleDate.clone();
@@ -664,9 +681,10 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
         if(cycleDate.getTimeInMillis()<=currentTime) cycleDate.add(Calendar.DAY_OF_YEAR, pref_cycleDays);
 
         //Debug - Ok... That's my result.
-        if(DEBUG) XposedBridge.log("HOOK       from prefTime:"+format.format(new Date(pref_cycleDate.getTimeInMillis()))+
-                " NEXT to currentTime:"+format.format(new Date(currentTime))+
-                " is "+format.format(new Date(cycleDate.getTimeInMillis())) );
+        if(DEBUG) { Format format = new SimpleDateFormat("dd/MM/yyyy");
+                    XposedBridge.log("HOOK       from prefTime:"+format.format(new Date(pref_cycleDate.getTimeInMillis()))+
+                    " NEXT to currentTime:"+format.format(new Date(currentTime))+
+                    " is "+format.format(new Date(cycleDate.getTimeInMillis())) ); }
 
         //Return Last
         return cycleDate.getTimeInMillis();
