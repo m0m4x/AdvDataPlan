@@ -49,7 +49,7 @@ import static java.lang.Math.abs;
 
 public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, IXposedHookInitPackageResources {
 
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     /****************************
         RESOURCES Hooking
