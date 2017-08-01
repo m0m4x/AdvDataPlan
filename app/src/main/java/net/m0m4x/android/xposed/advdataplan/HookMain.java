@@ -134,64 +134,79 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
                 int i48dip = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 48, context.getResources().getDisplayMetrics());
                 int i16dip = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, context.getResources().getDisplayMetrics());
 
-                //layout 0
-                R_id_cycle_day = liparam.res.getIdentifier("cycle_day", "id", "com.android.settings");
-                NumberPicker l0_num =  (NumberPicker) liparam.view.findViewById(R_id_cycle_day);
-                LinearLayout res_layout0 = (LinearLayout) l0_num.getRootView();
-                res_layout0.setOrientation(LinearLayout.VERTICAL);
+                try {
 
-                //hide all existing view
-                for (int i=0; i<res_layout0.getChildCount();i++){
-                    res_layout0.getChildAt(i).setVisibility(View.GONE);
+                    //numberPicker
+                    R_id_cycle_day = liparam.res.getIdentifier("cycle_day", "id", "com.android.settings");
+                    NumberPicker l0_num =  (NumberPicker) liparam.view.findViewById(R_id_cycle_day);
+                    l0_num.setVisibility(View.GONE);
+
+                    //debug
+                    if (DEBUG) view_dump(l0_num);
+
+                    //layout 0 (root - ViewGroup)
+                    ViewGroup res_layout0 = (ViewGroup) l0_num.getRootView();
+                    //case: LinearLayout - set Vertical
+                    if (res_layout0 instanceof LinearLayout) {
+                        LinearLayout res_lin_layout0 = (LinearLayout) res_layout0;
+                        res_lin_layout0.setOrientation(LinearLayout.VERTICAL);
+                    }
+                    //Hide all existing view
+                    //for (int i=0; i<res_layout0.getChildCount();i++){
+                    //    res_layout0.getChildAt(i).setVisibility(View.GONE);
+                    //}
+
+                    //layout 1
+                    LinearLayout res_layout1 = new LinearLayout(context);
+                    res_layout1.setOrientation(LinearLayout.HORIZONTAL);
+                    TextView l1_txt = new TextView(context);
+                    LinearLayout.LayoutParams l1_txt_lp = new LinearLayout.LayoutParams( LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+                    l1_txt_lp.gravity = Gravity.CENTER_VERTICAL;
+                    l1_txt_lp.setMarginStart(i16dip);
+                    l1_txt.setLayoutParams(l1_txt_lp);
+                    l1_txt.setGravity(Gravity.CENTER_VERTICAL);
+                    //l2_txt.setTextAppearance(context, android.R.style.TextAppearance_DeviceDefault_Medium);
+                    l1_txt.setText(modR_strings_dataplan_day);
+                    DatePickerDialog l1_dat = new DatePickerDialog(context, android.R.style.Theme_Holo_Light_Dialog, null, 2017,04,16);
+                    l1_dat.getDatePicker().findViewById(context.getResources().getIdentifier("year","id","android")).setVisibility(View.GONE);
+                    l1_dat.getDatePicker().setId(View.generateViewId());
+                    R_id_datepicker = l1_dat.getDatePicker().getId();
+                    l1_dat.getDatePicker().setLayoutParams(new LinearLayout.LayoutParams( LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+                    l1_dat.getDatePicker().setCalendarViewShown(false);
+                    l1_dat.getDatePicker().setSpinnersShown(true);
+                    //l1_dat.getDatePicker().setVisibility(View.GONE);
+                    res_layout1.addView(l1_txt);
+                    res_layout1.addView(l1_dat.getDatePicker());
+
+                    //layout 2
+                    LinearLayout res_layout2 = new LinearLayout(context);
+                    res_layout2.setOrientation(LinearLayout.HORIZONTAL);
+                    TextView l2_txt = new TextView(context);
+                    LinearLayout.LayoutParams l2_txt_lp = new LinearLayout.LayoutParams( LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
+                    l2_txt_lp.gravity = Gravity.CENTER_VERTICAL;
+                    l2_txt_lp.setMarginStart(i16dip);
+                    l2_txt.setLayoutParams(l2_txt_lp);
+                    l2_txt.setGravity(Gravity.CENTER_VERTICAL);
+                    //l2_txt.setTextAppearance(context, android.R.style.TextAppearance_DeviceDefault_Medium);
+                    l2_txt.setText(modR_strings_dataplan_days);
+                    NumberPicker l2_num = new NumberPicker(context);
+                    l2_num.setId(View.generateViewId());
+                    R_id_cycle_days = l2_num.getId();
+                    LinearLayout.LayoutParams l2_num_lp = new LinearLayout.LayoutParams( i150dip, i100dip);
+                    l2_num_lp.setMarginEnd(i16dip);
+                    l2_num_lp.setMarginStart(i16dip);
+                    l2_num.setLayoutParams(l2_num_lp);
+                    l2_num.setGravity(Gravity.CENTER_VERTICAL);
+                    res_layout2.addView(l2_txt);
+                    res_layout2.addView(l2_num);
+
+                    //Adding Layouts
+                    res_layout0.addView(res_layout1);
+                    res_layout0.addView(res_layout2);
+
+                } catch (Exception e) {
+                    XposedBridge.log("HOOK RES layout Exception: " + e.getMessage());
                 }
-
-                //layout 1
-                LinearLayout res_layout1 = new LinearLayout(context);
-                res_layout1.setOrientation(LinearLayout.HORIZONTAL);
-                TextView l1_txt = new TextView(context);
-                LinearLayout.LayoutParams l1_txt_lp = new LinearLayout.LayoutParams( LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-                l1_txt_lp.gravity = Gravity.CENTER_VERTICAL;
-                l1_txt_lp.setMarginStart(i16dip);
-                l1_txt.setLayoutParams(l1_txt_lp);
-                l1_txt.setGravity(Gravity.CENTER_VERTICAL);
-                //l2_txt.setTextAppearance(context, android.R.style.TextAppearance_DeviceDefault_Medium);
-                l1_txt.setText(modR_strings_dataplan_day);
-                DatePickerDialog l1_dat = new DatePickerDialog(context, android.R.style.Theme_Holo_Light_Dialog, null, 2017,04,16);
-                l1_dat.getDatePicker().findViewById(context.getResources().getIdentifier("year","id","android")).setVisibility(View.GONE);
-                l1_dat.getDatePicker().setId(View.generateViewId());
-                R_id_datepicker = l1_dat.getDatePicker().getId();
-                l1_dat.getDatePicker().setLayoutParams(new LinearLayout.LayoutParams( LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
-                l1_dat.getDatePicker().setCalendarViewShown(false);
-                l1_dat.getDatePicker().setSpinnersShown(true);
-                //l1_dat.getDatePicker().setVisibility(View.GONE);
-                res_layout1.addView(l1_txt);
-                res_layout1.addView(l1_dat.getDatePicker());
-
-                //layout 2
-                LinearLayout res_layout2 = new LinearLayout(context);
-                res_layout2.setOrientation(LinearLayout.HORIZONTAL);
-                TextView l2_txt = new TextView(context);
-                LinearLayout.LayoutParams l2_txt_lp = new LinearLayout.LayoutParams( LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-                l2_txt_lp.gravity = Gravity.CENTER_VERTICAL;
-                l2_txt_lp.setMarginStart(i16dip);
-                l2_txt.setLayoutParams(l2_txt_lp);
-                l2_txt.setGravity(Gravity.CENTER_VERTICAL);
-                //l2_txt.setTextAppearance(context, android.R.style.TextAppearance_DeviceDefault_Medium);
-                l2_txt.setText(modR_strings_dataplan_days);
-                NumberPicker l2_num = new NumberPicker(context);
-                l2_num.setId(View.generateViewId());
-                R_id_cycle_days = l2_num.getId();
-                LinearLayout.LayoutParams l2_num_lp = new LinearLayout.LayoutParams( i150dip, i100dip);
-                l2_num_lp.setMarginEnd(i16dip);
-                l2_num_lp.setMarginStart(i16dip);
-                l2_num.setLayoutParams(l2_num_lp);
-                l2_num.setGravity(Gravity.CENTER_VERTICAL);
-                res_layout2.addView(l2_txt);
-                res_layout2.addView(l2_num);
-
-                //Adding Layouts
-                res_layout0.addView(res_layout1);
-                res_layout0.addView(res_layout2);
 
                 if(DEBUG) XposedBridge.log("HOOK RES layout is inflated!");
             }
@@ -703,16 +718,16 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
             int childViewCount = rootView.getChildCount();
             for (int i=0; i<childViewCount;i++){
                 View workWithMe = rootView.getChildAt(i);
-                if(DEBUG) XposedBridge.log( "HOOK DUMP view found {" + workWithMe.getId()+"} : "+ workWithMe.toString() + " " );
-                if(workWithMe instanceof LinearLayout ){
-                    if(DEBUG) XposedBridge.log( "HOOK DUMP             linearLayout contains:" );
-                    LinearLayout llworkWithme = (LinearLayout) workWithMe;
+                if(DEBUG) XposedBridge.log( "HOOK DUMP view found {" + workWithMe.getId()+"} : "+ workWithMe.toString() + " " + workWithMe.getClass().getName().toString() + " " );
+                //if(workWithMe instanceof LinearLayout ){
+                    if(DEBUG) XposedBridge.log( "HOOK DUMP             " + workWithMe.getClass().getName().toString() + " contains:" );
+                    ViewGroup llworkWithme = (ViewGroup) workWithMe;
                     int llchildViewCount = llworkWithme.getChildCount();
                     for (int lli=0; lli<llchildViewCount;lli++){
                         View llview = llworkWithme.getChildAt(lli);
                         if(DEBUG) XposedBridge.log( "HOOK DUMP              + {" + llview.getId()+"} : "+ llview.toString() + " " );
                     }
-                }
+                //}
             }
         } catch (ClassCastException e){
             //Not a viewGroup here
