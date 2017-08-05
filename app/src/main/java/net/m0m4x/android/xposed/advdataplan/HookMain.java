@@ -20,6 +20,7 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.widget.DatePicker;
 import android.widget.LinearLayout;
 import android.widget.NumberPicker;
@@ -142,19 +143,26 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
                     l0_num.setVisibility(View.GONE);
 
                     //debug
-                    if (DEBUG) view_dump(l0_num);
+                    //if (DEBUG) view_dump(l0_num);
 
                     //layout 0 (root - ViewGroup)
-                    ViewGroup res_layout0 = (ViewGroup) l0_num.getRootView();
+                    ViewGroup res_layout0 = (ViewGroup) l0_num.getParent();
+                    if(DEBUG) XposedBridge.log("         Parent layout is " + res_layout0.getClass().getName());
                     //case: LinearLayout - set Vertical
                     if (res_layout0 instanceof LinearLayout) {
+                        if(DEBUG) XposedBridge.log("                          LinearLayout instance detected.");
                         LinearLayout res_lin_layout0 = (LinearLayout) res_layout0;
                         res_lin_layout0.setOrientation(LinearLayout.VERTICAL);
                     }
-                    //Hide all existing view
-                    //for (int i=0; i<res_layout0.getChildCount();i++){
-                    //    res_layout0.getChildAt(i).setVisibility(View.GONE);
-                    //}
+
+                    //hide originals layouts
+                    try {
+                        for (int i = 0; i < res_layout0.getChildCount(); i++) {
+                            res_layout0.getChildAt(i).setVisibility(View.GONE);
+                        }
+                    } catch(Exception e) {
+                        if(DEBUG) XposedBridge.log("Warning - Cannot empty layout!");
+                    }
 
                     //layout 1
                     LinearLayout res_layout1 = new LinearLayout(context);
@@ -201,11 +209,12 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
                     res_layout2.addView(l2_num);
 
                     //Adding Layouts
-                    res_layout0.addView(res_layout1);
-                    res_layout0.addView(res_layout2);
+                    (res_layout0).addView(res_layout1);
+                    (res_layout0).addView(res_layout2);
 
                 } catch (Exception e) {
-                    XposedBridge.log("HOOK RES layout Exception: " + e.getMessage());
+                    XposedBridge.log("HOOK RES layout Exception! ");
+                    e.printStackTrace();
                 }
 
                 if(DEBUG) XposedBridge.log("HOOK RES layout is inflated!");
