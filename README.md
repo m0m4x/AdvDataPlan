@@ -12,7 +12,6 @@ Features
 
 Requirements
 ============
-
 Tested with API23, but maybe will work with early versions
 
 Screenshot
@@ -23,6 +22,15 @@ Screenshot
   <img alt="pict3" src="https://github.com/m0m4x/AdvDataPlan/blob/master/screenshot/3.png?raw=true" width="250"/>
 </p>
 
+Support
+=======
+Please visit [XDA:DevDB Project Thread](https://forum.xda-developers.com/xposed/modules/xposed-advanced-data-plan-t3634138).
+
+Tested with
+===========
+* Cm or Aosp based roms
+* TouchWiz roms
+
 Know issues
 ===========
-* Not Working on TouchWiz at the moment
+* None :\
