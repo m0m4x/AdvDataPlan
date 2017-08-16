@@ -50,7 +50,7 @@ import static java.lang.Math.abs;
 
 public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, IXposedHookInitPackageResources {
 
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
 
     /****************************
         RESOURCES Hooking
@@ -353,7 +353,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
                     int pref_cycle_days = 31;
 
                     if(DEBUG) XposedBridge.log("HOOK pref LOAD "+cycleDay+"");
-                    if(cycleDay < 31){
+                    if(cycleDay <= 31){
                         pref_cycle_date.set(Calendar.DAY_OF_MONTH, cycleDay);
                     } else {
                         try{
@@ -367,7 +367,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
                                 pref_cycle_date.set(Calendar.YEAR, pref_cycle_date.get(Calendar.YEAR) - 1);
                                 if(DEBUG) XposedBridge.log("HOOK pref year set to "+pref_cycle_date.get(Calendar.YEAR)+"");
                             }
-                            pref_cycle_days = bs3;
+                            if(bs3 != 0) pref_cycle_days = bs3; else { pref_cycle_days = 31; XposedBridge.log("HOOK ERR pref_cycle_days=0 - forced 31!"); }
                         } catch (ClassCastException e){
                             //Not a viewGroup here
                             if(DEBUG) XposedBridge.log("HOOK pref decoding error "+ e.toString() );
@@ -606,7 +606,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
 
         int pref_cycleDays = 31;
         // test cycle_day of NetworkPolicy
-        if(cycle_day < 31){
+        if(cycle_day <= 31){
             // Not Bitshifted
             pref_cycleDate.set(Calendar.DAY_OF_MONTH, cycle_day);
         } else {
@@ -623,7 +623,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
                     pref_cycleDate.set(Calendar.YEAR, pref_cycleDate.get(Calendar.YEAR) - 1);
                     if(DEBUG) XposedBridge.log("HOOK preference year set to "+pref_cycleDate.get(Calendar.YEAR)+"");
                 }
-                pref_cycleDays = bs3;
+                if(bs3 != 0) pref_cycleDays = bs3; else { pref_cycleDays = 31; XposedBridge.log("HOOK ERR pref_cycleDays=0 - forced 31!"); }
             } catch (ClassCastException e){
                 if(DEBUG) XposedBridge.log("HOOK REQ Error decoding bitshifted Ints :"+ e.toString() );
             }
@@ -665,7 +665,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
 
         int pref_cycleDays = 31;
         // test cycle_day of NetworkPolicy
-        if(cycle_day < 31){
+        if(cycle_day <= 31){
             // Not Bitshifted
             pref_cycleDate.set(Calendar.DAY_OF_MONTH, cycle_day);
         } else {
@@ -682,7 +682,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
                     pref_cycleDate.set(Calendar.YEAR, pref_cycleDate.get(Calendar.YEAR) - 1);
                     if(DEBUG) XposedBridge.log("HOOK REQ preference year set to "+pref_cycleDate.get(Calendar.YEAR)+"");
                 }
-                pref_cycleDays = bs3;
+                if(bs3 != 0) pref_cycleDays = bs3; else { pref_cycleDays = 31; XposedBridge.log("HOOK ERR pref_cycleDays=0 - forced 31!"); }
             } catch (ClassCastException e){
                 if(DEBUG) XposedBridge.log("HOOK REQ Error decoding bitshifted Ints :"+ e.toString() );
             }
