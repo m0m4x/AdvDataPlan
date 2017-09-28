@@ -50,7 +50,7 @@ import static java.lang.Math.abs;
 
 public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, IXposedHookInitPackageResources {
 
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
 
     /****************************
         RESOURCES Hooking
@@ -312,6 +312,15 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
             /*
             Hook Method
             */
+
+            final Class<?> DataUsageSummary = XposedHelpers.findClass(
+                    "com.android.settings.DataUsageSummary",
+                    lpparam.classLoader);
+
+            final Class<?> NetworkPolicyEditor = XposedHelpers.findClass(
+                    "com.android.settings.net.NetworkPolicyEditor",
+                    lpparam.classLoader);
+
             findAndHookMethod("com.android.settings.DataUsageSummary.CycleEditorFragment", lpparam.classLoader, "onCreateDialog", "android.os.Bundle" , new XC_MethodReplacement() {
 
                 @Override
@@ -327,16 +336,39 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
 
                     //final DataUsageSummary target = (DataUsageSummary) getTargetFragment();
                     //final NetworkPolicyEditor editor = target.mPolicyEditor;
-                    final Fragment target = mCycleEditorFragment.getTargetFragment();
-                    final Object editor = XposedHelpers.getObjectField(target, "mPolicyEditor");                //type NetworkPolicyEditor
+                    final Fragment target = (Fragment) XposedHelpers.callMethod(param.thisObject,"getTargetFragment");
+                    final Object editor =  XposedHelpers.getObjectField(target, "mPolicyEditor");                //type NetworkPolicyEditor
 
+                    //final AlertDialog.Builder builder = new AlertDialog.Builder(context);
+                    //final LayoutInflater dialogInflater = LayoutInflater.from(builder.getContext());
                     final AlertDialog.Builder builder = new AlertDialog.Builder(context);
                     final LayoutInflater dialogInflater = LayoutInflater.from(builder.getContext());
 
+                    //final View view = dialogInflater.inflate(R.layout.data_usage_cycle_editor, null, false);
                     final View view = (View) XposedHelpers.callMethod(dialogInflater, "inflate", R_layout_data_usage_cycle_editor, null, false);
 
                     final Object template = mCycleEditorFragment.getArguments().getParcelable(EXTRA_TEMPLATE);      //type NetworkTemplate
-                    final int cycleDay = (int) XposedHelpers.callMethod(editor,"getPolicyCycleDay", template);
+                    int cycleDay = 31;
+                    try{
+                        cycleDay = (int) XposedHelpers.callMethod(editor, "getPolicyCycleDay", template);
+                    }catch (NoSuchMethodError e) {
+                        // Whaaaa ?
+                        if(DEBUG) XposedBridge.log("HOOK getPolicyCycleDay NOT FOUND! ("+editor.getClass()+"#getPolicyCycleDay) Trying findMethodExact....");
+                        try {
+                            Method getPolicyCycleDay;
+                            getPolicyCycleDay = XposedHelpers.findMethodExact(NetworkPolicyEditor, "getPolicyCycleDay", template);
+                            cycleDay = (int) getPolicyCycleDay.invoke(editor, template);
+                            if(DEBUG) XposedBridge.log("HOOK getPolicyCycleDay OK with findMethodExact! cycleDay is " + cycleDay);
+                        }catch (NoSuchMethodError ee) {
+                            if(DEBUG) XposedBridge.log("HOOK getPolicyCycleDay NOT FOUND with findMethodExact!");
+                            Method[] getPolicyCycleDayMethods = XposedHelpers.findMethodsByExactParameters(NetworkPolicyEditor, int.class, template.getClass());
+                            for (Method m : getPolicyCycleDayMethods) {
+                                if(DEBUG) XposedBridge.log("HOOK getPolicyCycleDayMethod "+ m.getClass().getName() + " " + m.getName() + " " + " ret:" + m.getReturnType().getName());
+                            }
+                            if(DEBUG) XposedBridge.log("HOOK Setting default CycleDay 31...");
+                            cycleDay = 31;
+                        }
+                    }
 
                     builder.setTitle("Advanced Cycle Editor");  //R.string.data_usage_cycle_editor_title
                     builder.setView(view);
