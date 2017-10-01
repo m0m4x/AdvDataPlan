@@ -3,11 +3,12 @@ package net.m0m4x.android.xposed.advdataplan;
  * Created by max on 09/04/2017.
  */
 
+import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
+import android.app.Dialog;
 import android.app.DialogFragment;
-import android.app.Fragment;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.res.XModuleResources;
@@ -23,6 +24,7 @@ import android.widget.DatePicker;
 import android.widget.LinearLayout;
 import android.widget.NumberPicker;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.text.Format;
 import java.text.SimpleDateFormat;
@@ -36,6 +38,7 @@ import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XC_MethodReplacement;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
+import de.robv.android.xposed.callbacks.XC_InitPackageResources;
 import de.robv.android.xposed.callbacks.XC_InitPackageResources.InitPackageResourcesParam;
 import de.robv.android.xposed.callbacks.XC_LayoutInflated;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
@@ -44,7 +47,7 @@ import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
 import static java.lang.Math.abs;
 
 
-public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, IXposedHookInitPackageResources {
+public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageResources, IXposedHookLoadPackage {
 
     private static final boolean DEBUG = true;
 
@@ -55,30 +58,31 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
 
     private static String MODULE_PATH = null;
 
-    int R_layout_data_usage_cycle_editor;
-    int R_id_datepicker;
-    int R_id_cycle_days;
-    int R_id_cycle_day;
+    static int R_layout_data_usage_cycle_editor;
+    static int R_id_datepicker;
+    static int R_id_cycle_days;
+    static int R_id_cycle_day;
 
-    int modR_strings_dataplan_days;
-    int modR_strings_dataplan_day;
-    int modR_strings_nr1_daily;
-    int modR_strings_nr7_weekly;
-    int modR_strings_nr30_fixedmonth;
-    int modR_strings_nr31_monthly;
+    static int modR_strings_dataplan_days;
+    static int modR_strings_dataplan_day;
+    static int modR_strings_nr1_daily;
+    static int modR_strings_nr7_weekly;
+    static int modR_strings_nr30_fixedmonth;
+    static int modR_strings_nr31_monthly;
 
     @Override
     public void initZygote(StartupParam startupParam) throws Throwable {
         MODULE_PATH = startupParam.modulePath;
-        //if(DEBUG) XposedBridge.log("HOOK initZygote - " + startupParam.modulePath + " !");
+        if(DEBUG) XposedBridge.log("HOOK init AdvDataPlan - modulePath:" + startupParam.modulePath + " sdk: "+Build.VERSION.SDK_INT+"");
+
     }
 
     @Override
     public void handleInitPackageResources(InitPackageResourcesParam resparam) throws Throwable {
-        if (!resparam.packageName.equals("com.android.settings")) {
+        if(DEBUG) XposedBridge.log("HOOK RES init -  " + resparam.packageName + " !   eee");
+        if(!resparam.packageName.equals("com.android.settings")) {
             return;
         }
-        if(DEBUG) XposedBridge.log("HOOK RES init -  " + resparam.packageName + " !");
 
         /*
             Get ID of module resources
@@ -110,10 +114,9 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
             Nougat: Ok!
         */
         resparam.res.hookLayout("com.android.settings", "layout", "data_usage_cycle_editor", new XC_LayoutInflated() {
-            @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
+            @SuppressLint("NewApi")
             @Override
             public void handleLayoutInflated(LayoutInflatedParam liparam) throws Throwable {
-
                 if(DEBUG) XposedBridge.log("HOOK RES layout is inflating... - data_usage_cycle_editor!");
 
                 Context context = liparam.view.getContext();
@@ -234,7 +237,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
 
     public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
 
-        if(DEBUG) XposedBridge.log("HOOK handleLoadPackage - " + lpparam.packageName + " !");
+        if(DEBUG) XposedBridge.log("HOOK handleLoadPackage - " + lpparam.packageName + "! " );
 
         /*
             NetworkPolicy Classes - Compute cycle Boundaries
@@ -307,159 +310,87 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
             DataUsage Classes - Editor Dialog Fragment
 
             Marshmallow: native
-            Nougat:  error XposedHelpers$ClassNotFoundError: java.lang.ClassNotFoundException: com.android.settings.DataUsageSummary
+            Nougat:  Ok!
 
          */
         if( lpparam.packageName.equals("com.android.settings") ) {
-            if(DEBUG) XposedBridge.log("HOOK DataUsageSummary methods! (pkg:"+lpparam.packageName+")!");
+                if(DEBUG) XposedBridge.log("HOOK DataUsageSummary methods! (pkg:"+lpparam.packageName+")!");
 
             //SDK23
-            if(Build.VERSION.SDK_INT == 23) {
-                findAndHookMethod("com.android.settings.DataUsageSummary.CycleEditorFragment", lpparam.classLoader, "onCreateDialog", "android.os.Bundle", new XC_MethodReplacement() {
+            if (Build.VERSION.SDK_INT == 23) {
+                final Class<?> CycleEditorFragment = XposedHelpers.findClass(
+                        "com.android.settings.DataUsageSummary.CycleEditorFragment",
+                        lpparam.classLoader);
+                findAndHookMethod(CycleEditorFragment, "onCreateDialog", "android.os.Bundle", new XC_MethodReplacement() {
                     @Override
                     protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
-
                         if (DEBUG) XposedBridge.log("HOOK onCreateDialog START!");
 
-                        //final Context context = getActivity();
-                        DialogFragment mCycleEditorFragment = (DialogFragment) param.thisObject;                    //CycleEditorFragment
-                        //View viewDialog = (View) XposedHelpers.callMethod(mCycleEditorFragment,"getView");        //getView();          is NULL
-                        //final Context context = mCycleEditorFragment.getContext();                                //SubSettings
-                        final Context context = (Context) XposedHelpers.callMethod(param.thisObject, "getActivity");
-
-                        //final DataUsageSummary target = (DataUsageSummary) getTargetFragment();
-                        //final NetworkPolicyEditor editor = target.mPolicyEditor;
-                        final Fragment target = mCycleEditorFragment.getTargetFragment();
-                        final Object editor = XposedHelpers.getObjectField(target, "mPolicyEditor");                //type NetworkPolicyEditor
-
-                        final AlertDialog.Builder builder = new AlertDialog.Builder(context);
-                        final LayoutInflater dialogInflater = LayoutInflater.from(builder.getContext());
-
-                        final View view = (View) XposedHelpers.callMethod(dialogInflater, "inflate", R_layout_data_usage_cycle_editor, null, false);
-
-                        final Object template = mCycleEditorFragment.getArguments().getParcelable(EXTRA_TEMPLATE);      //type NetworkTemplate
-                        final int cycleDay = (int) XposedHelpers.callMethod(editor, "getPolicyCycleDay", template);
-
-                        builder.setTitle("Advanced Cycle Editor");  //R.string.data_usage_cycle_editor_title
-                        builder.setView(view);
-
-                        /*
-                        if(DEBUG) XposedBridge.log("HOOK R_id_cycle_day="+R_id_cycle_day);
-                        if(DEBUG) XposedBridge.log("HOOK R_id_cycle_days="+R_id_cycle_days);
-                        if(DEBUG) XposedBridge.log("HOOK R_id_datepicker="+R_id_datepicker);
-                        view_dump(view);
-                        */
-
-                        // Get Preferences
-                        Calendar pref_cycle_date = Calendar.getInstance();
-                        int pref_cycle_days = 31;
-
-                        if (DEBUG) XposedBridge.log("HOOK pref LOAD " + cycleDay + "");
-                        if (cycleDay <= 31) {
-                            pref_cycle_date.set(Calendar.DAY_OF_MONTH, cycleDay);
-                        } else {
-                            try {
-                                int bs1 = cycleDay & 0xFF;          // Day of Month
-                                int bs2 = (cycleDay >> 8) & 0xFF;   // Month
-                                int bs3 = (cycleDay >> 16) & 0xFF;  // num Days
-                                if (DEBUG)
-                                    XposedBridge.log("HOOK pref LOAD BITSHIFT " + bs1 + "." + bs2 + "." + bs3 + "");
-                                pref_cycle_date.set(Calendar.DAY_OF_MONTH, bs1);
-                                pref_cycle_date.set(Calendar.MONTH, bs2);
-                                if (pref_cycle_date.getTimeInMillis() > System.currentTimeMillis()) {
-                                    pref_cycle_date.set(Calendar.YEAR, pref_cycle_date.get(Calendar.YEAR) - 1);
-                                    if (DEBUG)
-                                        XposedBridge.log("HOOK pref year set to " + pref_cycle_date.get(Calendar.YEAR) + "");
-                                }
-                                if (bs3 != 0) pref_cycle_days = bs3;
-                                else {
-                                    pref_cycle_days = 31;
-                                    XposedBridge.log("HOOK ERR pref_cycle_days=0 - forced 31!");
-                                }
-                            } catch (ClassCastException e) {
-                                //Not a viewGroup here
-                                if (DEBUG)
-                                    XposedBridge.log("HOOK pref decoding error " + e.toString());
-                            }
-                        }
-
-                        //Update pref_cycle_date to Last Cycle
-                        while (pref_cycle_date.getTimeInMillis() < System.currentTimeMillis()) {     // Cycle until cycle_date > currentTime
-                            pref_cycle_date.add(Calendar.DAY_OF_MONTH, pref_cycle_days);
-                            if (DEBUG)
-                                XposedBridge.log("HOOK pref pref_cycle_date update to " + pref_cycle_date + "");
-                        }
-                        pref_cycle_date.add(Calendar.DAY_OF_MONTH, -pref_cycle_days);                       //Set Last Cycle
-
-
-                        final NumberPicker cycleDayPicker = (NumberPicker) view.findViewById(R_id_cycle_day);
-                        if (DEBUG)
-                            XposedBridge.log("HOOK Numberpicker = " + cycleDayPicker.getId() + " " + cycleDayPicker.toString());
-                        cycleDayPicker.setMinValue(1);
-                        cycleDayPicker.setMaxValue(31);
-                        cycleDayPicker.setValue(cycleDay);
-                        cycleDayPicker.setWrapSelectorWheel(true);
-
-                        final NumberPicker cycleDaysPicker = (NumberPicker) view.findViewById(R_id_cycle_days);
-                        String[] values = new String[100];
-                        for (int i = 0; i < 100; ++i) {
-                            values[i] = "" + (i + 1);
-                        }
-                        values[0] = context.getString(modR_strings_nr1_daily);
-                        values[6] = context.getString(modR_strings_nr7_weekly);
-                        values[29] = context.getString(modR_strings_nr30_fixedmonth);
-                        values[30] = context.getString(modR_strings_nr31_monthly);
-                        cycleDaysPicker.setDisplayedValues(values);
-                        cycleDaysPicker.setMinValue(1);
-                        cycleDaysPicker.setMaxValue(100);
-                        cycleDaysPicker.setValue(pref_cycle_days);
-                        cycleDaysPicker.setWrapSelectorWheel(true);
-
-                        final DatePicker cycleDatePicker = (DatePicker) view.findViewById(R_id_datepicker);
-                        int year = pref_cycle_date.get(Calendar.YEAR);
-                        int month = pref_cycle_date.get(Calendar.MONTH);
-                        int day = pref_cycle_date.get(Calendar.DAY_OF_MONTH);
-                        cycleDatePicker.updateDate(year, month, day);
-                        cycleDatePicker.setMaxDate(System.currentTimeMillis());
-
-                        builder.setPositiveButton("OK",             //R.string.data_usage_cycle_editor_positive
-                                new DialogInterface.OnClickListener() {
-                                    @Override
-                                    public void onClick(DialogInterface dialog, int which) {
-                                        // clear focus to finish pending text edits
-                                        cycleDayPicker.clearFocus();
-                                        cycleDaysPicker.clearFocus();
-                                        cycleDatePicker.clearFocus();
-
-                                        // Encode Day of Month, Month and Duration into one int
-                                        // via BitShift method.
-                                        int bs1 = cycleDatePicker.getDayOfMonth();
-                                        int bs2 = cycleDatePicker.getMonth();
-                                        int bs3 = cycleDaysPicker.getValue();
-                                        int bs = (bs1 & 0xFF) | ((bs2 & 0xFF) << 8) | ((bs3 & 0xFF) << 16);
-                                        if (DEBUG)
-                                            XposedBridge.log("HOOK pref SAVED " + bs + " (" + bs1 + "." + bs2 + "." + bs3 + ")");
-
-                                        //Save in policy CycleDay
-                                        final String cycleTimezone = new Time().timezone;
-                                        XposedHelpers.callMethod(editor, "setPolicyCycleDay", template, bs, cycleTimezone);
-                                        XposedHelpers.callMethod(target, "updatePolicy", true);
-
-                                    }
-                                });
-
-                        if (DEBUG) XposedBridge.log("HOOK onCreateDialog END!");
-
-                        return builder.create();
+                        return (Dialog) createAdvDialog(param);
 
                     }
 
                 });
             }
 
-            //SDK24
-            if(Build.VERSION.SDK_INT == 24) {
+            //SDK24-25
+            if (Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25) {
+                final Class<?> BillingCycleSettings = XposedHelpers.findClass(
+                        "com.android.settings.datausage.BillingCycleSettings",
+                        lpparam.classLoader);
+                final Class<?> CycleEditorFragment = XposedHelpers.findClass(
+                        "com.android.settings.datausage.BillingCycleSettings.CycleEditorFragment",
+                        lpparam.classLoader);
+                findAndHookMethod(CycleEditorFragment, "onCreateDialog", "android.os.Bundle", new XC_MethodReplacement() {
+                    @Override
+                    protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+                        if (DEBUG) XposedBridge.log("HOOK onCreateDialog START! " + lpparam.packageName);
 
+                        return createAdvDialog(param);
+                    }
+                });
+                findAndHookMethod(CycleEditorFragment, "onClick", DialogInterface.class, int.class , new XC_MethodReplacement() {
+                    @Override
+                    protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+                        if (DEBUG) XposedBridge.log("HOOK onClick START!" + lpparam.packageName);
+
+                        final Object args = (Object) XposedHelpers.callMethod(param.thisObject, "getArguments");
+                        final Object template = XposedHelpers.callMethod(args, "getParcelable", EXTRA_TEMPLATE );       //type NetworkTemplate
+                        final Object target = XposedHelpers.callMethod(param.thisObject, "getTargetFragment");          //type DataUsageEditController
+                        final Object editor = XposedHelpers.callMethod(target, "getNetworkPolicyEditor");  //type NetworkPolicyEditor
+
+                        final NumberPicker cycleDayPicker = (NumberPicker) XposedHelpers.getObjectField(param.thisObject, "mCycleDayPicker");
+                        final NumberPicker cycleDaysPicker = (NumberPicker) XposedHelpers.getAdditionalStaticField(param.thisObject, "mCycleDaysPicker");
+                        final DatePicker cycleDatePicker = (DatePicker) XposedHelpers.getAdditionalStaticField(param.thisObject, "mCycleDatePicker");
+
+                        // clear focus to finish pending text edits
+                        cycleDayPicker.clearFocus();
+                        cycleDaysPicker.clearFocus();
+                        cycleDatePicker.clearFocus();
+
+                        // Encode Day of Month, Month and Duration into one int
+                        // via BitShift method.
+                        int bs = encodeBitShiftedInt(cycleDatePicker, cycleDaysPicker);
+
+                        //Save in policy CycleDay
+                        final String cycleTimezone = new Time().timezone;
+                        XposedHelpers.callMethod(editor, "setPolicyCycleDay", template, bs, cycleTimezone);
+                        XposedHelpers.callMethod(target, "updatePolicy", true);
+
+                        return null;
+                    }
+                });
+
+                /*
+                findAndHookMethod(CycleEditorFragment, "show", BillingCycleSettings, new XC_MethodReplacement() {
+                    @Override
+                    protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+                        if (DEBUG) XposedBridge.log("HOOK show START!" + lpparam.packageName);
+
+                        return null;
+                    }
+                });
+                */
 
             }
 
@@ -481,7 +412,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
             //    Build.VERSION.SDK_INT >= 22 ? CLASS_MOBILE_DATA_CONTROLLER_23 : CLASS_MOBILE_DATA_CONTROLLER_22;
 
             //SDK23
-            if(Build.VERSION.SDK_INT == 23) {
+            if (Build.VERSION.SDK_INT == 23) {
                 final Class<?> MobileDataController = XposedHelpers.findClass(
                         "com.android.systemui.statusbar.policy.MobileDataControllerImpl",
                         lpparam.classLoader);
@@ -497,7 +428,8 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
                 findAndHookMethod(MobileDataController, "getDataUsageInfo", new XC_MethodReplacement() {
                     @Override
                     protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
-                        if (DEBUG) XposedBridge.log("HOOK android.net > getDataUsageInfo (pkg:" + lpparam.packageName + ")");
+                        if (DEBUG)
+                            XposedBridge.log("HOOK android.net > getDataUsageInfo (pkg:" + lpparam.packageName + ")");
 
                         return getAdvDataUsageInfo(param, NetworkTemplate, NetworkStatsHistory, DataUsageInfo);
                     }
@@ -505,9 +437,8 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
             }
 
 
-            //SDK24
-            if(Build.VERSION.SDK_INT == 24) {
-
+            //SDK24-25
+            if (Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25) {
                 final Class<?> DataUsageController = XposedHelpers.findClass(
                         "com.android.settingslib.net.DataUsageController",
                         lpparam.classLoader);
@@ -520,11 +451,11 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
                 final Class<?> DataUsageInfo = XposedHelpers.findClass(
                         "com.android.settingslib.net.DataUsageController.DataUsageInfo",
                         lpparam.classLoader);
-
-                findAndHookMethod(DataUsageController, "getDataUsageInfo", DataUsageInfo , NetworkTemplate ,new XC_MethodReplacement() {
+                findAndHookMethod(DataUsageController, "getDataUsageInfo", NetworkTemplate, new XC_MethodReplacement() {
                     @Override
                     protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
-                        if (DEBUG) XposedBridge.log("HOOK android.net > getDataUsageInfo (pkg:" + lpparam.packageName + ")");
+                        if (DEBUG)
+                            XposedBridge.log("HOOK android.net > getDataUsageInfo (pkg:" + lpparam.packageName + ")");
 
                         return getAdvDataUsageInfo(param, NetworkTemplate, NetworkStatsHistory, DataUsageInfo);
                     }
@@ -537,10 +468,11 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
     }
 
     /****************************
-     Service static methods
+     Main Methods
 
      */
 
+    //Compute methods
     private static long mComputeLastCycleBoundary(long currentTime, int cycle_day) {
         // Get Preferences
         Calendar pref_cycleDate = Calendar.getInstance();
@@ -660,7 +592,161 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
         return cycleDate.getTimeInMillis();
     }
 
+    //Dialog methods
+    private static Object createAdvDialog(XC_MethodHook.MethodHookParam param) {
 
+        DialogFragment mCycleEditorFragment = (DialogFragment) param.thisObject;                    //CycleEditorFragment
+        final Context context = (Context) XposedHelpers.callMethod(param.thisObject, "getActivity");
+
+        final Object target = XposedHelpers.callMethod(param.thisObject, "getTargetFragment");
+        final Object editor;                                                                        //type NetworkPolicyEditor
+        if (Build.VERSION.SDK_INT == 23) {
+            editor = XposedHelpers.getObjectField(target, "mPolicyEditor");
+        } else if (Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25) {
+            editor = XposedHelpers.callMethod(target, "getNetworkPolicyEditor");
+        } else {
+            XposedBridge.log("HOOK createAdvDialog: SDK "+Build.VERSION.SDK_INT+" not supported!");
+            return null;
+        }
+
+        final AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        final LayoutInflater dialogInflater = LayoutInflater.from(builder.getContext());
+
+        final View view = (View) XposedHelpers.callMethod(dialogInflater, "inflate", R_layout_data_usage_cycle_editor, null, false);
+        final NumberPicker cycleDayPicker;
+        if (Build.VERSION.SDK_INT == 23) {
+            cycleDayPicker = (NumberPicker) view.findViewById(R_id_cycle_day);
+        } else if (Build.VERSION.SDK_INT == 24) {
+            XposedHelpers.setObjectField(param.thisObject, "mCycleDayPicker", (NumberPicker) view.findViewById(R_id_cycle_day));
+            cycleDayPicker = (NumberPicker) XposedHelpers.getObjectField(param.thisObject, "mCycleDayPicker");
+        } else {
+            Toast.makeText(context, "SDK "+Build.VERSION.SDK_INT+" not supported!", Toast.LENGTH_LONG).show();
+            return null;
+        }
+
+        final Object args = (Object) XposedHelpers.callMethod(param.thisObject, "getArguments");
+        final Object template = XposedHelpers.callMethod(args, "getParcelable", EXTRA_TEMPLATE );       //type NetworkTemplate
+        final int cycleDay = (int) XposedHelpers.callMethod(editor, "getPolicyCycleDay", template);
+
+        if(DEBUG) XposedBridge.log("HOOK R_id_cycle_day="+R_id_cycle_day);
+        if(DEBUG) XposedBridge.log("HOOK R_id_cycle_days="+R_id_cycle_days);
+        if(DEBUG) XposedBridge.log("HOOK R_id_datepicker="+R_id_datepicker);
+        //view_dump(view);
+
+        //Decode cycleDay
+        Calendar pref_cycle_date = Calendar.getInstance();
+        int pref_cycle_days = 31;
+        if (DEBUG) XposedBridge.log("HOOK pref LOAD " + cycleDay + "");
+        if (cycleDay <= 31) {
+            pref_cycle_date.set(Calendar.DAY_OF_MONTH, cycleDay);
+        } else {
+            try {
+                int bs1 = cycleDay & 0xFF;          // Day of Month
+                int bs2 = (cycleDay >> 8) & 0xFF;   // Month
+                int bs3 = (cycleDay >> 16) & 0xFF;  // num Days
+                if (DEBUG) XposedBridge.log("HOOK pref LOAD BITSHIFT " + bs1 + "." + bs2 + "." + bs3 + "");
+                pref_cycle_date.set(Calendar.DAY_OF_MONTH, bs1);
+                pref_cycle_date.set(Calendar.MONTH, bs2);
+                if (pref_cycle_date.getTimeInMillis() > System.currentTimeMillis()) {
+                    pref_cycle_date.set(Calendar.YEAR, pref_cycle_date.get(Calendar.YEAR) - 1);
+                    if (DEBUG) XposedBridge.log("HOOK pref year set to " + pref_cycle_date.get(Calendar.YEAR) + "");
+                }
+                if (bs3 != 0) pref_cycle_days = bs3;
+                else {
+                    pref_cycle_days = 31;
+                    XposedBridge.log("HOOK ERR pref_cycle_days=0 - forced 31!");
+                }
+            } catch (ClassCastException e) {
+                //Not a viewGroup here
+                if (DEBUG) XposedBridge.log("HOOK pref decoding error " + e.toString());
+                e.printStackTrace();
+            }
+        }
+
+        //Update pref_cycle_date to Last Cycle
+        while (pref_cycle_date.getTimeInMillis() < System.currentTimeMillis()) {     // Cycle until cycle_date > currentTime
+            pref_cycle_date.add(Calendar.DAY_OF_MONTH, pref_cycle_days);
+            if (DEBUG)
+                XposedBridge.log("HOOK pref pref_cycle_date update to " + pref_cycle_date + "");
+        }
+        pref_cycle_date.add(Calendar.DAY_OF_MONTH, -pref_cycle_days);                       //Set Last Cycle
+
+        //Set layout cycleDayPicker
+        if (DEBUG) XposedBridge.log("HOOK Numberpicker = " + cycleDayPicker.getId() + " " + cycleDayPicker.toString());
+        cycleDayPicker.setMinValue(1);
+        cycleDayPicker.setMaxValue(31);
+        cycleDayPicker.setValue(cycleDay);
+        cycleDayPicker.setWrapSelectorWheel(true);
+
+        //Set layout cycleDaysPicker
+        final NumberPicker cycleDaysPicker = (NumberPicker) view.findViewById(R_id_cycle_days);
+        String[] values = new String[100];
+        for (int i = 0; i < 100; ++i) {
+            values[i] = "" + (i + 1);
+        }
+        values[0] = context.getString(modR_strings_nr1_daily);
+        values[6] = context.getString(modR_strings_nr7_weekly);
+        values[29] = context.getString(modR_strings_nr30_fixedmonth);
+        values[30] = context.getString(modR_strings_nr31_monthly);
+        cycleDaysPicker.setDisplayedValues(values);
+        cycleDaysPicker.setMinValue(1);
+        cycleDaysPicker.setMaxValue(100);
+        cycleDaysPicker.setValue(pref_cycle_days);
+        cycleDaysPicker.setWrapSelectorWheel(true);
+
+        //Set layout cycleDatePicker
+        final DatePicker cycleDatePicker = (DatePicker) view.findViewById(R_id_datepicker);
+        int year = pref_cycle_date.get(Calendar.YEAR);
+        int month = pref_cycle_date.get(Calendar.MONTH);
+        int day = pref_cycle_date.get(Calendar.DAY_OF_MONTH);
+        cycleDatePicker.updateDate(year, month, day);
+        cycleDatePicker.setMaxDate(System.currentTimeMillis());
+
+        // Set builder
+        builder.setTitle("Advanced Cycle Editor");  //R.string.data_usage_cycle_editor_title
+        builder.setView(view);
+        if (Build.VERSION.SDK_INT == 23) {
+            builder.setPositiveButton("OK",             //R.string.data_usage_cycle_editor_positive
+                    new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            // clear focus to finish pending text edits
+                            cycleDayPicker.clearFocus();
+                            cycleDaysPicker.clearFocus();
+                            cycleDatePicker.clearFocus();
+                            int bs = encodeBitShiftedInt(cycleDatePicker, cycleDaysPicker);
+
+
+                            //Save in policy CycleDay
+                            final String cycleTimezone = new Time().timezone;
+                            XposedHelpers.callMethod(editor, "setPolicyCycleDay", template, bs, cycleTimezone);
+                            XposedHelpers.callMethod(target, "updatePolicy", true);
+
+                        }
+                    });
+        } else if (Build.VERSION.SDK_INT == 24) {
+            XposedHelpers.setAdditionalStaticField(param.thisObject,"mCycleDatePicker",cycleDatePicker);
+            XposedHelpers.setAdditionalStaticField(param.thisObject,"mCycleDaysPicker",cycleDaysPicker);
+            builder.setPositiveButton("OK", (DialogInterface.OnClickListener) param.thisObject);
+        }
+
+        //Create Dialog & return
+        if (DEBUG) XposedBridge.log("HOOK onCreateDialog END!");
+        return builder.create();
+    }
+
+    private static int encodeBitShiftedInt(DatePicker cycleDatePicker, NumberPicker cycleDaysPicker) {
+        // Encode Day of Month, Month and Duration into one int
+        // via BitShift method.
+        int bs1 = cycleDatePicker.getDayOfMonth();
+        int bs2 = cycleDatePicker.getMonth();
+        int bs3 = cycleDaysPicker.getValue();
+        int bs = (bs1 & 0xFF) | ((bs2 & 0xFF) << 8) | ((bs3 & 0xFF) << 16);
+        if (DEBUG) XposedBridge.log("HOOK pref SAVED " + bs + " (" + bs1 + "." + bs2 + "." + bs3 + ")");
+        return bs;
+    }
+
+    //Status Bar methods
     private static Object getAdvDataUsageInfo(XC_MethodHook.MethodHookParam param, Class<?> networkTemplate, Class<?> networkStatsHistory, Class<?> dataUsageInfo) {
 
         //Get Session
@@ -752,8 +838,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
 
 
     /****************************
-     Service static Methods
-
+     Utility Methods
      */
 
     public static void view_dump(View view){

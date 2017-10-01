@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name" translatable="false">Advanced Data Plan </string>
+    <string name="app_name" translatable="false">Advanced Data Plan</string>
     <string name="dataplan_days">Data Plan days:</string>
     <string name="dataplan_day">Day to start data usage cycle:</string>
     <string name="nr1_daily">1 - Daily</string>
