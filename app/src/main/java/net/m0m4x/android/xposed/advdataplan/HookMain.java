@@ -321,7 +321,11 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
                     "com.android.settings.net.NetworkPolicyEditor",
                     lpparam.classLoader);
 
-            findAndHookMethod("com.android.settings.DataUsageSummary.CycleEditorFragment", lpparam.classLoader, "onCreateDialog", "android.os.Bundle" , new XC_MethodReplacement() {
+            final Class<?> CycleEditorFragment = XposedHelpers.findClass(
+                    "com.android.settings.DataUsageSummary.CycleEditorFragment",
+                    lpparam.classLoader);
+
+            findAndHookMethod(CycleEditorFragment, "onCreateDialog", "android.os.Bundle" , new XC_MethodReplacement() {
 
                 @Override
                 protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
@@ -347,7 +351,9 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
                     //final View view = dialogInflater.inflate(R.layout.data_usage_cycle_editor, null, false);
                     final View view = (View) XposedHelpers.callMethod(dialogInflater, "inflate", R_layout_data_usage_cycle_editor, null, false);
 
-                    final Object template = mCycleEditorFragment.getArguments().getParcelable(EXTRA_TEMPLATE);      //type NetworkTemplate
+                    final Object args = (Object) XposedHelpers.callMethod(param.thisObject, "getArguments");
+                    final Object template = XposedHelpers.callMethod(args, "getParcelable", EXTRA_TEMPLATE );
+
                     int cycleDay = 31;
                     try{
                         cycleDay = (int) XposedHelpers.callMethod(editor, "getPolicyCycleDay", template);
