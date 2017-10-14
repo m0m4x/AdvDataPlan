@@ -15,6 +15,7 @@ import android.content.res.XModuleResources;
 import android.os.Build;
 import android.text.format.DateUtils;
 import android.text.format.Time;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -79,7 +80,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
 
     @Override
     public void handleInitPackageResources(InitPackageResourcesParam resparam) throws Throwable {
-        if(DEBUG) XposedBridge.log("HOOK RES init -  " + resparam.packageName + " !   eee");
+        if(DEBUG) XposedBridge.log("HOOK RES init -  " + resparam.packageName + " ! ");
         if(!resparam.packageName.equals("com.android.settings")) {
             return;
         }
@@ -375,7 +376,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                         //Save in policy CycleDay
                         final String cycleTimezone = new Time().timezone;
                         XposedHelpers.callMethod(editor, "setPolicyCycleDay", template, bs, cycleTimezone);
-                        XposedHelpers.callMethod(target, "updatePolicy", true);
+                        XposedHelpers.callMethod(target, "updateDataUsage");
 
                         return null;
                     }
@@ -397,11 +398,12 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
         }
 
         /*
-            System UI classes
+            System UI classes - getDataUsageInfo
          */
 
-        if( lpparam.packageName.equals("com.android.systemui")
-            ) {
+        if(         lpparam.packageName.equals("com.android.systemui")
+                ||  lpparam.packageName.equals("com.android.settings")
+                ){
 
             if(DEBUG) XposedBridge.log("HOOK SystemUI methods! (pkg:"+lpparam.packageName+")!");
 
@@ -465,6 +467,42 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
 
         }
 
+
+
+         /*
+            Settings App - Billing Cycle preview
+            only in SDK 24-25
+
+            status: todo
+         */
+         /*
+        if (Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25) {
+            if(         lpparam.packageName.equals("com.android.settings")
+                    ) {
+
+                //BillingCyclePreference.java
+                final Class<?> BillingCyclePreference = XposedHelpers.findClass(
+                        "com.android.settings.datausage.BillingCyclePreference",
+                        lpparam.classLoader);
+                final Class<?> NetworkTemplate = XposedHelpers.findClass(
+                        "android.net.NetworkTemplate",
+                        lpparam.classLoader);
+
+                findAndHookMethod(BillingCyclePreference, "setTemplate", new XC_MethodReplacement() {
+                    @Override
+                    protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+                        if (DEBUG)
+                            XposedBridge.log("HOOK android.net > getDataUsageInfo (pkg:" + lpparam.packageName + ")");
+
+                        return getAdvDataUsageInfo(param, NetworkTemplate, NetworkStatsHistory, DataUsageInfo);
+                    }
+                });
+
+                //BillingCycleSettings.java
+
+            }
+        }
+        */
     }
 
     /****************************
@@ -595,6 +633,8 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
     //Dialog methods
     private static Object createAdvDialog(XC_MethodHook.MethodHookParam param) {
 
+        XposedBridge.log("HOOK createAdvDialog start!");
+
         DialogFragment mCycleEditorFragment = (DialogFragment) param.thisObject;                    //CycleEditorFragment
         final Context context = (Context) XposedHelpers.callMethod(param.thisObject, "getActivity");
 
@@ -616,7 +656,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
         final NumberPicker cycleDayPicker;
         if (Build.VERSION.SDK_INT == 23) {
             cycleDayPicker = (NumberPicker) view.findViewById(R_id_cycle_day);
-        } else if (Build.VERSION.SDK_INT == 24) {
+        } else if (Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25) {
             XposedHelpers.setObjectField(param.thisObject, "mCycleDayPicker", (NumberPicker) view.findViewById(R_id_cycle_day));
             cycleDayPicker = (NumberPicker) XposedHelpers.getObjectField(param.thisObject, "mCycleDayPicker");
         } else {
@@ -724,7 +764,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
 
                         }
                     });
-        } else if (Build.VERSION.SDK_INT == 24) {
+        } else if (Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25) {
             XposedHelpers.setAdditionalStaticField(param.thisObject,"mCycleDatePicker",cycleDatePicker);
             XposedHelpers.setAdditionalStaticField(param.thisObject,"mCycleDaysPicker",cycleDaysPicker);
             builder.setPositiveButton("OK", (DialogInterface.OnClickListener) param.thisObject);
@@ -768,7 +808,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
             template = XposedHelpers.callStaticMethod(networkTemplate, "buildTemplateMobileAll", subscriberId);
             template = XposedHelpers.callStaticMethod(networkTemplate, "normalize", template, XposedHelpers.callMethod(mTelephonyManager, "getMergedSubscriberIds"));
         }
-        else if(Build.VERSION.SDK_INT == 24) {
+        else if(Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25) {
             template = param.args[0];
         }
 
@@ -785,7 +825,8 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
             final long start, end;
 
             //Compute Cycle boundaries
-            int cycleDay = (int) XposedHelpers.getObjectField(policy, "cycleDay");
+            int cycleDay = 0;
+            if (policy != null) { cycleDay = (int) XposedHelpers.getObjectField(policy, "cycleDay"); }
             if (policy != null && cycleDay > 31) {
                 start = mComputeLastCycleBoundary(now, cycleDay);
                 end = mComputeNextCycleBoundary(now, cycleDay);
@@ -810,7 +851,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
 
             //Create dataUsageInfo and return
             final Object usage = XposedHelpers.newInstance(dataUsageInfo);
-            if(Build.VERSION.SDK_INT == 24) { XposedHelpers.setLongField(usage, "start", (long) start); }
+            if(Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25) { XposedHelpers.setLongField(usage, "startDate", (long) start); }
             XposedHelpers.setLongField(usage, "usageLevel", (long) totalBytes);
             XposedHelpers.setObjectField(usage, "period", (String) XposedHelpers.callMethod(param.thisObject, "formatDateRange", start, end));
             if (policy != null) {
@@ -819,21 +860,21 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
             } else {
                 XposedHelpers.setLongField(usage, "warningLevel", 2L * 1024 * 1024 * 1024);
             }
-            if (usage != null) {
-                Object mNetworkController = XposedHelpers.getObjectField(param.thisObject, "mNetworkController");
+            Object mNetworkController = XposedHelpers.getObjectField(param.thisObject, "mNetworkController");
+            if (usage != null && mNetworkController != null) {
                 XposedHelpers.setObjectField(usage, "carrier", (String) XposedHelpers.callMethod(mNetworkController, "getMobileDataNetworkName"));
             }
-            if (DEBUG) XposedBridge.log("HOOK UI DataUsage: usageLevel=" + XposedHelpers.getObjectField(usage, "usageLevel") + " period=" + XposedHelpers.getObjectField(usage, "period") + "");
+            if (DEBUG && usage != null)XposedBridge.log("HOOK UI DataUsage: usageLevel=" + XposedHelpers.getObjectField(usage, "usageLevel") + " period=" + XposedHelpers.getObjectField(usage, "period") + "");
 
             return usage;
         } catch (Exception e) {
-            if (DEBUG) XposedBridge.log("HOOK UI DataUsage: remote call failed");
-            XposedHelpers.callMethod(param.thisObject, "warn", "remote call failed");
+            if (DEBUG) XposedBridge.log("HOOK UI DataUsage: remote call failed StackTrace:" + Log.getStackTraceString(e));
+            return XposedHelpers.callMethod(param.thisObject, "warn", "remote call failed");
         }
 
         //Return Null
-        if (DEBUG) XposedBridge.log("HOOK UI DataUsage: returning null!");
-        return null;
+        //if (DEBUG) XposedBridge.log("HOOK UI DataUsage: returning null!");
+        //return null;
     }
 
 
