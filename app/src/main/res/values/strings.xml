@@ -1,9 +1,11 @@
-<resources>
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="app_name" translatable="false">Advanced Data Plan</string>
     <string name="dataplan_days">Data Plan days:</string>
     <string name="dataplan_day">Day to start data usage cycle:</string>
-    <string name="nr1_daily">1 - Daily</string>
-    <string name="nr7_weekly">7 - Weekly</string>
-    <string name="nr30_fixedmonth">30 - Italian Monthly</string>
-    <string name="nr31_monthly">31 - Monthly</string>
+    <string name="nr1_daily">Daily</string>
+    <string name="nr7_weekly">Weekly</string>
+    <string name="nr30_fixedmonth">Fixed Monthly</string>
+    <string name="nr31_monthly">Monthly</string>
+    <string name="summary_days">Every %1$s days</string>
+    <string name="summary_starting">starting %1$s</string>
 </resources>

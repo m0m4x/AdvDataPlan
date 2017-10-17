@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="dataplan_days">Durata in giorni del piano:</string>
-    <string name="nr1_daily">1 - Giornaliero</string>
-    <string name="nr7_weekly">7 - Settimanale</string>
-    <string name="nr30_fixedmonth">30 - Mensile</string>
-    <string name="nr31_monthly">31 - Mensile intero</string>
+    <string name="nr1_daily">Giornaliero</string>
+    <string name="nr7_weekly">Settimanale</string>
+    <string name="nr30_fixedmonth">Mensile all\'italiana</string>
+    <string name="nr31_monthly">Mensile intero</string>
     <string name="dataplan_day">Giorno di inizio del piano:</string>
+    <string name="summary_days">Ogni %1$s giorni</string>
+    <string name="summary_starting">a partire dal %1$s</string>
 </resources>
