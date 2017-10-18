@@ -318,7 +318,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
                     lpparam.classLoader);
 
             final Class<?> NetworkPolicyEditor = XposedHelpers.findClass(
-                    "com.android.settings.net.NetworkPolicyEditor",
+                    "com.android.settingslib.NetworkPolicyEditor",
                     lpparam.classLoader);
 
             final Class<?> CycleEditorFragment = XposedHelpers.findClass(
@@ -354,12 +354,12 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookLoadPackage, 
                     final Object args = (Object) XposedHelpers.callMethod(param.thisObject, "getArguments");
                     final Object template = XposedHelpers.callMethod(args, "getParcelable", EXTRA_TEMPLATE );
 
-                    int cycleDay = 31;
+                    int cycleDay = 31; 
                     try{
                         cycleDay = (int) XposedHelpers.callMethod(editor, "getPolicyCycleDay", template);
                     }catch (NoSuchMethodError e) {
                         // Whaaaa ?
-                        if(DEBUG) XposedBridge.log("HOOK getPolicyCycleDay NOT FOUND! ("+editor.getClass()+"#getPolicyCycleDay) Trying findMethodExact....");
+                        if(DEBUG) XposedBridge.log("HOOK getPolicyCycleDay NOT FOUND! ("+editor.getClass().getName().toString()+"#getPolicyCycleDay) Trying findMethodExact....");
                         try {
                             Method getPolicyCycleDay;
                             getPolicyCycleDay = XposedHelpers.findMethodExact(NetworkPolicyEditor, "getPolicyCycleDay", template);
