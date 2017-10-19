@@ -49,7 +49,7 @@ import static java.lang.Math.abs;
 
 public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageResources, IXposedHookLoadPackage {
 
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     /****************************
         RESOURCES Hooking
@@ -73,6 +73,8 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
     static int modR_strings_nr31_monthly;
     static int modR_strings_summary_days;
     static int modR_strings_summary_starting;
+    static int modR_strings_cycle_days;
+    static int modR_strings_cycle_detail;
 
     @Override
     public void initZygote(StartupParam startupParam) throws Throwable {
@@ -103,6 +105,8 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
         modR_strings_nr31_monthly = resparam.res.addResource(modRes, R.string.nr31_monthly);
         modR_strings_summary_days = resparam.res.addResource(modRes, R.string.summary_days);
         modR_strings_summary_starting = resparam.res.addResource(modRes, R.string.summary_starting);
+        modR_strings_cycle_days = resparam.res.addResource(modRes, R.string.cycle_days);
+        modR_strings_cycle_detail = resparam.res.addResource(modRes, R.string.cycle_detail);
 
         /*
             Get ID of native resources
@@ -481,7 +485,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
             Settings App - Billing Cycle preview
             only in SDK 24-25
 
-            status: todo
+            status: ok
          */
 
         if (Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25) {
@@ -490,35 +494,75 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                     ) {
 
                 //BillingCyclePreference.java
-                final Class<?> BillingCyclePreference = XposedHelpers.findClass(
-                        "com.android.settings.datausage.BillingCyclePreference",
+                // com.android.settings.datausage.BillingCyclePreference
+                // extend android.support.v7.preference.Preference
+                final Class<?> Preferencev7 = XposedHelpers.findClass(
+                        "android.support.v7.preference.Preference",
                         lpparam.classLoader);
-                final Class<?> NetworkTemplate = XposedHelpers.findClass(
-                        "android.net.NetworkTemplate",
-                        lpparam.classLoader);
-                final Class<?> NetworkServices = XposedHelpers.findClass(
-                        "com.android.settings.datausage.TemplatePreference$NetworkServices",
-                        lpparam.classLoader);
-                findAndHookMethod(BillingCyclePreference, "setTemplate", NetworkTemplate, int.class, NetworkServices, new XC_MethodReplacement() {
+                findAndHookMethod(Preferencev7, "setSummary", CharSequence.class, new XC_MethodHook() {
                     @Override
-                    protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
-                        if (DEBUG)XposedBridge.log("HOOK BillingCyclePreference#setTemplate (pkg:" + lpparam.packageName + ")");
-                        XposedHelpers.setObjectField(param.thisObject, "mTemplate", param.args[0]);
-                        XposedHelpers.setObjectField(param.thisObject, "mSubId", param.args[1]);
-                        XposedHelpers.setObjectField(param.thisObject, "mServices", param.args[2]);
+                    protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                        if (DEBUG)XposedBridge.log("HOOK Preference#setSummary class:"+param.thisObject.getClass().getName().toString()+" (pkg:" + lpparam.packageName + ")");
 
-                        XposedHelpers.setObjectField(param.thisObject, "mPolicy", XposedHelpers.callMethod(
-                                XposedHelpers.getObjectField(param.args[2], "mPolicyEditor"), "getPolicy",
-                                XposedHelpers.getObjectField(param.thisObject, "mTemplate")));
+                        //com.android.settings.datausage.BillingCyclePreference
+                        if (param.thisObject.getClass().getName().toString().equals("com.android.settings.datausage.BillingCyclePreference")){
+
+                            //Get CycleDay
+                            Object policy = XposedHelpers.getObjectField(param.thisObject, "mPolicy");
+                            int cycleDay = 1;
+                            if(policy != null) cycleDay = (int) XposedHelpers.getObjectField(policy, "cycleDay");
+
+                            //Decode CycleDay
+                            Object[] decodedArr = decodeBitShiftedInt(cycleDay);
+                            Calendar pref_cycleDate = (Calendar) decodedArr[0];
+                            int pref_cycleDays = (int) decodedArr[1];
+
+                            //Build phrase
+                            final Context context = (Context) XposedHelpers.callMethod(param.thisObject, "getContext");
+                            String strDays;
+                            switch (pref_cycleDays) {
+                                case 1:  strDays = (String) XposedHelpers.callMethod(context, "getString", modR_strings_nr1_daily);
+                                    break;
+                                case 7:  strDays = (String) XposedHelpers.callMethod(context, "getString", modR_strings_nr7_weekly);
+                                    break;
+                                case 31:  strDays = (String) XposedHelpers.callMethod(context, "getString", modR_strings_nr31_monthly);
+                                    break;
+                                default: strDays = String.format((String) XposedHelpers.callMethod(context, "getString", modR_strings_summary_days), pref_cycleDays);
+                                    break;
+                            }
+
+                            Format format = new SimpleDateFormat("dd MMM yyyy");
+                            param.args[0] = strDays + " " + String.format( (String) XposedHelpers.callMethod(context, "getString", modR_strings_summary_starting), format.format(new Date(pref_cycleDate.getTimeInMillis())));
+
+                            return;
+                        }
+
+                    }
+                });
+
+                //BillingCycleSettings.java
+                // com.android.settings.datausage.BillingCycleSettings
+                // calls android.support.v7.preference.Preference setSummary()
+                final Class<?> BillingCycleSettings = XposedHelpers.findClass(
+                        "com.android.settings.datausage.BillingCycleSettings",
+                        lpparam.classLoader);
+                findAndHookMethod(BillingCycleSettings, "updatePrefs", new XC_MethodHook() {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                        Object template = XposedHelpers.getObjectField(param.thisObject,"mNetworkTemplate");
+                        Object services = XposedHelpers.getObjectField(param.thisObject,"services");
+                        Object editor = XposedHelpers.getObjectField(services,"mPolicyEditor");
+                        Object policy = XposedHelpers.callMethod(editor,"getPolicy",template);
 
                         //Get CycleDay
-                        Object policy = XposedHelpers.getObjectField(param.thisObject, "mPolicy");
                         int cycleDay = 1;
                         if(policy != null) cycleDay = (int) XposedHelpers.getObjectField(policy, "cycleDay");
 
                         //Decode CycleDay
                         Object[] decodedArr = decodeBitShiftedInt(cycleDay);
                         Calendar pref_cycleDate = (Calendar) decodedArr[0];
+                        Calendar pref_cycleDateEnd = Calendar.getInstance();
+                        pref_cycleDateEnd.setTimeInMillis(mComputeNextCycleBoundary(pref_cycleDate.getTimeInMillis(), cycleDay));
                         int pref_cycleDays = (int) decodedArr[1];
 
                         //Build phrase
@@ -531,20 +575,18 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                                 break;
                             case 31:  strDays = (String) XposedHelpers.callMethod(context, "getString", modR_strings_nr31_monthly);
                                 break;
-                            default: strDays = String.format((String) XposedHelpers.callMethod(context, "getString", modR_strings_summary_days), pref_cycleDays);
+                            default: strDays = pref_cycleDays + " " + (String) XposedHelpers.callMethod(context, "getString", modR_strings_cycle_days);
                                 break;
                         }
-                        Format format = new SimpleDateFormat("dd MMM yyyy");
-                        XposedHelpers.callMethod(param.thisObject,"setSummary", strDays + " " + String.format( (String) XposedHelpers.callMethod(context, "getString", modR_strings_summary_starting), format.format(new Date(pref_cycleDate.getTimeInMillis())))  );
 
-                        XposedHelpers.callMethod(param.thisObject, "setIntent", XposedHelpers.callMethod(param.thisObject, "getIntent"));
-                        return null;
+                        Format format = new SimpleDateFormat("dd MMM");
+                        Object pref = XposedHelpers.getObjectField(param.thisObject, "mBillingCycle");
+                        XposedHelpers.callMethod(pref, "setSummary", String.format((String) XposedHelpers.callMethod(context, "getString", modR_strings_cycle_detail), format.format(new Date(pref_cycleDate.getTimeInMillis())), format.format(new Date(pref_cycleDateEnd.getTimeInMillis())), strDays.toLowerCase() ));
+
+                        return;
+
                     }
                 });
-
-                //BillingCycleSettings.java
-                // TODO
-                // descr: The cycle started on day x and ends on date y. The cycle duration is z days.
 
             }
         }
@@ -698,6 +740,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
         cycleDaysPicker.setMaxValue(100);
         cycleDaysPicker.setValue(pref_cycle_days);
         cycleDaysPicker.setWrapSelectorWheel(true);
+        cycleDaysPicker.setDescendantFocusability(NumberPicker.FOCUS_BLOCK_DESCENDANTS);
 
         //Set layout cycleDatePicker
         final DatePicker cycleDatePicker = (DatePicker) view.findViewById(R_id_datepicker);
@@ -706,6 +749,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
         int day = pref_cycle_date.get(Calendar.DAY_OF_MONTH);
         cycleDatePicker.updateDate(year, month, day);
         cycleDatePicker.setMaxDate(System.currentTimeMillis());
+        cycleDatePicker.setDescendantFocusability(DatePicker.FOCUS_BLOCK_DESCENDANTS);
 
         // Set builder
         builder.setTitle("Advanced Cycle Editor");  //R.string.data_usage_cycle_editor_title

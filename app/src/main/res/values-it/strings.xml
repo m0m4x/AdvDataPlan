@@ -8,4 +8,6 @@
     <string name="dataplan_day">Giorno di inizio del piano:</string>
     <string name="summary_days">Ogni %1$s giorni</string>
     <string name="summary_starting">a partire dal %1$s</string>
+    <string name="cycle_days">giorni</string>
+    <string name="cycle_detail">Il ciclo è iniziato in data %1$s e finirà in data %2$s alle ore 00:00. La durata del ciclo è di %3$s.</string>
 </resources>
