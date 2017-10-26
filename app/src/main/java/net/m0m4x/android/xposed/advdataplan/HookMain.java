@@ -228,6 +228,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                 } catch (Exception e) {
                     XposedBridge.log("HOOK RES layout Exception! ");
                     e.printStackTrace();
+                    throw new Exception(e);
                 }
 
                 if(DEBUG) XposedBridge.log("HOOK RES layout is inflated!");
@@ -369,8 +370,18 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
 
                         final Object args = (Object) XposedHelpers.callMethod(param.thisObject, "getArguments");
                         final Object template = XposedHelpers.callMethod(args, "getParcelable", EXTRA_TEMPLATE );       //type NetworkTemplate
-                        final Object target = XposedHelpers.callMethod(param.thisObject, "getTargetFragment");          //type DataUsageEditController
-                        final Object editor = XposedHelpers.callMethod(target, "getNetworkPolicyEditor");  //type NetworkPolicyEditor
+                        final Object target = XposedHelpers.callMethod(param.thisObject, "getTargetFragment");          //type sdk24:BillingCycleSettings sdk25:DataUsageEditController
+
+                        final Object editor;                                                                            //type NetworkPolicyEditor
+                        if (Build.VERSION.SDK_INT == 24) {
+                            Object services = XposedHelpers.getObjectField(target,"services");
+                            editor = XposedHelpers.getObjectField(services,"mPolicyEditor");
+                        } else if (Build.VERSION.SDK_INT == 25) {
+                            editor = XposedHelpers.callMethod(target, "getNetworkPolicyEditor");
+                        } else {
+                            XposedBridge.log("HOOK AdvDialog$onClick: SDK "+Build.VERSION.SDK_INT+" not supported!");
+                            return null;
+                        }
 
                         final NumberPicker cycleDayPicker = (NumberPicker) XposedHelpers.getObjectField(param.thisObject, "mCycleDayPicker");
                         final NumberPicker cycleDaysPicker = (NumberPicker) XposedHelpers.getAdditionalStaticField(param.thisObject, "mCycleDaysPicker");
@@ -388,7 +399,12 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                         //Save in policy CycleDay
                         final String cycleTimezone = new Time().timezone;
                         XposedHelpers.callMethod(editor, "setPolicyCycleDay", template, bs, cycleTimezone);
-                        XposedHelpers.callMethod(target, "updateDataUsage");
+
+                        if (Build.VERSION.SDK_INT == 24) {
+                            XposedHelpers.callMethod(target, "updatePrefs");
+                        } else if (Build.VERSION.SDK_INT == 25) {
+                            XposedHelpers.callMethod(target, "updateDataUsage");
+                        }
 
                         return null;
                     }
@@ -670,11 +686,14 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
         DialogFragment mCycleEditorFragment = (DialogFragment) param.thisObject;                    //CycleEditorFragment
         final Context context = (Context) XposedHelpers.callMethod(param.thisObject, "getActivity");
 
-        final Object target = XposedHelpers.callMethod(param.thisObject, "getTargetFragment");
+        final Object target = XposedHelpers.callMethod(param.thisObject, "getTargetFragment");      //type sdk:23 DataUsageSummary sdk:24 BillingCycleSettings sdk:25 DataUsageEditController
         final Object editor;                                                                        //type NetworkPolicyEditor
         if (Build.VERSION.SDK_INT == 23) {
             editor = XposedHelpers.getObjectField(target, "mPolicyEditor");
-        } else if (Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25) {
+        } else if (Build.VERSION.SDK_INT == 24) {
+            Object services = XposedHelpers.getObjectField(target,"services");
+            editor = XposedHelpers.getObjectField(services,"mPolicyEditor");
+        } else if (Build.VERSION.SDK_INT == 25) {
             editor = XposedHelpers.callMethod(target, "getNetworkPolicyEditor");
         } else {
             XposedBridge.log("HOOK createAdvDialog: SDK "+Build.VERSION.SDK_INT+" not supported!");
