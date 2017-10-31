@@ -8,6 +8,6 @@
     <string name="nr31_monthly">Monthly</string>
     <string name="summary_days">Every %1$s days</string>
     <string name="summary_starting">starting %1$s</string>
-    <string name="cycle_days">days</string>
+    <string name="cycle_days">%1$s days</string>
     <string name="cycle_detail">The cycle started on %1$s and will ends on %2$s at 00:00. The cycle duration is %3$s.</string>
 </resources>

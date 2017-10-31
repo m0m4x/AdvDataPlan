@@ -6,12 +6,9 @@ package net.m0m4x.android.xposed.advdataplan;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
-import android.app.Dialog;
 import android.app.DialogFragment;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.res.AssetManager;
-import android.content.res.Resources;
 import android.content.res.XModuleResources;
 import android.os.Build;
 import android.text.format.DateUtils;
@@ -28,18 +25,13 @@ import android.widget.NumberPicker;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.text.Format;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.List;
-import java.util.Set;
 
 import de.robv.android.xposed.IXposedHookInitPackageResources;
 import de.robv.android.xposed.IXposedHookLoadPackage;
@@ -53,12 +45,11 @@ import de.robv.android.xposed.callbacks.XC_LayoutInflated;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
 import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
-import static java.lang.Math.abs;
 
 
 public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageResources, IXposedHookLoadPackage {
 
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
 
     /****************************
         RESOURCES Hooking
@@ -139,7 +130,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
             @SuppressLint("NewApi")
             @Override
             public void handleLayoutInflated(LayoutInflatedParam liparam) throws Throwable {
-                if(DEBUG) XposedBridge.log("HOOK RES handleLayoutInflated - Layout is inflating... - data_usage_cycle_editor!");
+                if(DEBUG) XposedBridge.log("HOOK RES handleLayoutInflated(): Layout is inflating... - data_usage_cycle_editor!");
 
                 Context context = liparam.view.getContext();
 
@@ -160,18 +151,18 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
 
                     //numberPicker
                     R_id_cycle_day = liparam.res.getIdentifier("cycle_day", "id", "com.android.settings");
-                    NumberPicker l0_num =  (NumberPicker) liparam.view.findViewById(R_id_cycle_day);
-                    l0_num.setVisibility(View.GONE);
+                    Object l0_num =  liparam.view.findViewById(R_id_cycle_day);
+                    XposedHelpers.callMethod(l0_num, "setVisibility", View.GONE);
 
                     //debug
                     //if (DEBUG) view_dump(l0_num);
 
                     //layout 0 (root - ViewGroup)
-                    ViewGroup res_layout0 = (ViewGroup) l0_num.getParent();
-                    if(DEBUG) XposedBridge.log("         Parent layout is " + res_layout0.getClass().getName());
+                    ViewGroup res_layout0 = (ViewGroup) XposedHelpers.callMethod(l0_num, "getParent");
+                    if(DEBUG) XposedBridge.log("HOOK RES handleLayoutInflated(): Parent layout is " + res_layout0.getClass().getName());
                     //case: LinearLayout - set Vertical
                     if (res_layout0 instanceof LinearLayout) {
-                        if(DEBUG) XposedBridge.log("                          LinearLayout instance detected.");
+                        if(DEBUG) XposedBridge.log("HOOK RES handleLayoutInflated(): LinearLayout instance detected.");
                         LinearLayout res_lin_layout0 = (LinearLayout) res_layout0;
                         res_lin_layout0.setOrientation(LinearLayout.VERTICAL);
                     }
@@ -181,9 +172,11 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                         for (int i = 0; i < res_layout0.getChildCount(); i++) {
                             res_layout0.getChildAt(i).setVisibility(View.GONE);
                         }
-                    } catch(Exception e) {
-                        if(DEBUG) XposedBridge.log("Warning - Cannot empty layout!");
-                        e.printStackTrace();
+                    } catch(Exception ex) {
+                        XposedBridge.log("HOOK WARNING handleLayoutInflated(): Cannot empty existent layout!");
+                        StackTraceElement[] elements = ex.getStackTrace();
+                        XposedBridge.log("HOOK WARNING handleLayoutInflated(): " + ex.getMessage());
+                        XposedBridge.log("HOOK WARNING handleLayoutInflated(): at " + elements[0].getClassName() + "." + elements[0].getMethodName() + "() line: " + elements[0].getLineNumber());
                     }
 
                     //layout 1
@@ -197,7 +190,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                     l1_txt.setGravity(Gravity.CENTER_VERTICAL);
                     //l2_txt.setTextAppearance(context, android.R.style.TextAppearance_DeviceDefault_Medium);
                     l1_txt.setText(modR_strings_dataplan_day);
-                    DatePickerDialog l1_dat = new DatePickerDialog(context, android.R.style.Theme_Holo_Light_Dialog, null, 2017,04,16);
+                    DatePickerDialog l1_dat = new DatePickerDialog(context, android.R.style.Theme_Holo_Light_Dialog, null, 2017,4,16);
                     l1_dat.getDatePicker().findViewById(context.getResources().getIdentifier("year","id","android")).setVisibility(View.GONE);
                     l1_dat.getDatePicker().setId(View.generateViewId());
                     R_id_datepicker = l1_dat.getDatePicker().getId();
@@ -235,11 +228,13 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                     (res_layout0).addView(res_layout2);
 
                 } catch (Exception ex) {
-                    XposedBridge.log("HOOK RES EX handleLayoutInflated stacktrace: " + ex.getStackTrace());
-                    throw new Exception(ex);
+                    XposedBridge.log("HOOK ERROR handleLayoutInflated(): " + ex.getMessage());
+                    StackTraceElement[] elements = ex.getStackTrace();
+                    XposedBridge.log("HOOK ERROR handleLayoutInflated(): at " + elements[0].getClassName() + "." + elements[0].getMethodName() + "() line: " + elements[0].getLineNumber());
+                    throw ex;
                 }
 
-                if(DEBUG) XposedBridge.log("HOOK RES handleLayoutInflated - Layout is inflated!");
+                if(DEBUG) XposedBridge.log("HOOK RES handleLayoutInflated(): Layout is inflated!");
             }
         });
 
@@ -283,7 +278,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
 
                 @Override
                 protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
-                    if(DEBUG) XposedBridge.log("HOOK REQ android.net > computeNextCycleBoundary(): (pkg:"+lpparam.packageName+")");
+                    if(DEBUG) XposedBridge.log("HOOK REQ computeNextCycleBoundary(): (pkg:"+lpparam.packageName+")");
 
                     // Get Params
                     long currentTime = (long) param.args[0];    // long currentTime
@@ -305,14 +300,14 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
 
                 @Override
                 protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
-                    if(DEBUG) XposedBridge.log("HOOK REQ android.net > computeLastCycleBoundary(): (pkg:"+lpparam.packageName+")");
+                    if(DEBUG) XposedBridge.log("HOOK REQ computeLastCycleBoundary(): (pkg:"+lpparam.packageName+")");
 
                     // Get Params
                     long currentTime = (long) param.args[0];    // long currentTime
                     Object policy = param.args[1];              // NetworkPolicy policy
                     int cycle_day = (int) XposedHelpers.getObjectField(policy, "cycleDay");
 
-                    //TODO Check policy template mobile, otherwise do default
+                    // Need to Check policy template mobile? (otherwise do default)
 
                     // Check
                     if (cycle_day == CYCLE_NONE) {
@@ -341,17 +336,20 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                 findAndHookMethod(CycleEditorFragment, "onCreateDialog", "android.os.Bundle", new XC_MethodReplacement() {
                     @Override
                     protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
-                        if (DEBUG) XposedBridge.log("HOOK onCreateDialog START!");
+                        if (DEBUG) XposedBridge.log("HOOK onCreateDialog(): Called now!");
 
                         try {
-                            return (Dialog) createAdvDialog(param);
+                            return createAdvDialog(param);
                         } catch (Exception ex) {
+                            XposedBridge.log("HOOK ERROR createAdvDialog(): " + ex.getMessage());
+                            StackTraceElement[] elements = ex.getStackTrace();
+                            XposedBridge.log("HOOK ERROR createAdvDialog(): at " + elements[0].getClassName() + "." + elements[0].getMethodName() + "() line: " + elements[0].getLineNumber());
                             String dump=obj_dump(param.thisObject);
-                            if(DEBUG) XposedBridge.log("HOOK EX createAdvDialog() objDUMP: DataUsageSummary.CycleEditorFragment ");
+                            XposedBridge.log("HOOK ERROR createAdvDialog() objDUMP: Dumping DataUsageSummary.CycleEditorFragment ...");
                             for (String item : dump.split(System.getProperty("line.separator"))) {
-                                if(DEBUG) XposedBridge.log("HOOK EX createAdvDialog() objDUMP: " + item);
+                                XposedBridge.log("HOOK ERROR createAdvDialog() objDUMP: " + item);
                             }
-                            throw new Exception("HOOK EX createAdvDialog() ERROR",ex);
+                            throw ex;
                         }
 
                     }
@@ -367,18 +365,21 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                 findAndHookMethod(CycleEditorFragment, "onCreateDialog", "android.os.Bundle", new XC_MethodReplacement() {
                     @Override
                     protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
-                        if (DEBUG) XposedBridge.log("HOOK onCreateDialog START! " + lpparam.packageName);
+                        if (DEBUG) XposedBridge.log("HOOK onCreateDialog(): Starting here! " + lpparam.packageName);
 
                         try {
-                            //throw new Exception("test");
                             return createAdvDialog(param);
+
                         } catch (Exception ex) {
+                            XposedBridge.log("HOOK ERROR createAdvDialog(): " + ex.getMessage());
+                            StackTraceElement[] elements = ex.getStackTrace();
+                            XposedBridge.log("HOOK ERROR createAdvDialog(): at " + elements[0].getClassName() + "." + elements[0].getMethodName() + "() line: " + elements[0].getLineNumber());
                             String dump=obj_dump(param.thisObject);
-                            if(DEBUG) XposedBridge.log("HOOK EX createAdvDialog() objDUMP: BillingCycleSettings.CycleEditorFragment ");
+                            XposedBridge.log("HOOK ERROR createAdvDialog() objDUMP: Dumping BillingCycleSettings.CycleEditorFragment ...");
                             for (String item : dump.split(System.getProperty("line.separator"))) {
-                                if(DEBUG) XposedBridge.log("HOOK EX createAdvDialog() objDUMP: " + item);
+                                XposedBridge.log("HOOK ERROR createAdvDialog() objDUMP: " + item);
                             }
-                            throw new Exception("HOOK EX createAdvDialog() ERROR",ex);
+                            throw ex;
                         }
 
                     }
@@ -389,7 +390,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                         if (DEBUG) XposedBridge.log("HOOK onClick START!" + lpparam.packageName);
 
                         try {
-                            final Object args = (Object) XposedHelpers.callMethod(param.thisObject, "getArguments");
+                            final Object args = XposedHelpers.callMethod(param.thisObject, "getArguments");
                             final Object template = XposedHelpers.callMethod(args, "getParcelable", EXTRA_TEMPLATE );       //type NetworkTemplate
                             final Object target = XposedHelpers.callMethod(param.thisObject, "getTargetFragment");          //type sdk24:BillingCycleSettings sdk25:DataUsageEditController
 
@@ -400,7 +401,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                             } else if (Build.VERSION.SDK_INT == 25) {
                                 editor = XposedHelpers.callMethod(target, "getNetworkPolicyEditor");
                             } else {
-                                XposedBridge.log("HOOK AdvDialog$onClick: SDK "+Build.VERSION.SDK_INT+" not supported!");
+                                XposedBridge.log("HOOK AdvDialog.onClick(): SDK "+Build.VERSION.SDK_INT+" not supported!");
                                 return null;
                             }
 
@@ -430,12 +431,15 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                             return null;
 
                         } catch (Exception ex) {
+                            XposedBridge.log("HOOK ERROR AdvDialog.onClick(): " + ex.getMessage());
+                            StackTraceElement[] elements = ex.getStackTrace();
+                            XposedBridge.log("HOOK ERROR AdvDialog.onClick(): at " + elements[0].getClassName() + "." + elements[0].getMethodName() + "() line: " + elements[0].getLineNumber());
                             String dump=obj_dump(param.thisObject);
-                            if(DEBUG) XposedBridge.log("HOOK EX AdvDialog.onClick() objDUMP: BillingCycleSettings.CycleEditorFragment ");
+                            XposedBridge.log("HOOK ERROR AdvDialog.onClick() objDUMP: Dumping BillingCycleSettings.CycleEditorFragment ...");
                             for (String item : dump.split(System.getProperty("line.separator"))) {
-                                if(DEBUG) XposedBridge.log("HOOK EX AdvDialog.onClick() objDUMP: " + item);
+                                XposedBridge.log("HOOK ERROR AdvDialog.onClick() objDUMP: " + item);
                             }
-                            throw new Exception("HOOK EX AdvDialog.onClick() ERROR",ex);
+                            throw ex;
                         }
 
                     }
@@ -468,7 +472,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
             if(DEBUG) XposedBridge.log("HOOK SystemUI methods! (pkg:"+lpparam.packageName+")!");
 
             //SDK22
-            //  TODO Adjust for Lollipop SDK22
+            // Lollipop not supported
             //    CLASS_MOBILE_DATA_CONTROLLER_23 = "com.android.systemui.statusbar.policy.MobileDataControllerImpl";
             //    CLASS_MOBILE_DATA_CONTROLLER_22 = "com.android.systemui.statusbar.policy.MobileDataController";
             //    Build.VERSION.SDK_INT >= 22 ? CLASS_MOBILE_DATA_CONTROLLER_23 : CLASS_MOBILE_DATA_CONTROLLER_22;
@@ -491,7 +495,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                     @Override
                     protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
                         if (DEBUG)
-                            XposedBridge.log("HOOK UI android.net > getDataUsageInfo(): (pkg:" + lpparam.packageName + ")");
+                            XposedBridge.log("HOOK UI MobileDataController.getDataUsageInfo(): (pkg:" + lpparam.packageName + ")");
 
                         return getAdvDataUsageInfo(param, NetworkTemplate, NetworkStatsHistory, DataUsageInfo);
                     }
@@ -517,7 +521,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                     @Override
                     protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
                         if (DEBUG)
-                            XposedBridge.log("HOOK UI android.net > getDataUsageInfo(): (pkg:" + lpparam.packageName + ")");
+                            XposedBridge.log("HOOK UI DataUsageController.getDataUsageInfo(): (pkg:" + lpparam.packageName + ")");
 
                         return getAdvDataUsageInfo(param, NetworkTemplate, NetworkStatsHistory, DataUsageInfo);
                     }
@@ -551,7 +555,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                         if (DEBUG)XposedBridge.log("HOOK UI Preference.setSummary(): class "+param.thisObject.getClass().getName().toString()+" (pkg:" + lpparam.packageName + ")");
 
                         //com.android.settings.datausage.BillingCyclePreference
-                        if (param.thisObject.getClass().getName().toString().equals("com.android.settings.datausage.BillingCyclePreference")){
+                        if (param.thisObject.getClass().getName().equals("com.android.settings.datausage.BillingCyclePreference")){
 
                             try{
                                 //Get CycleDay
@@ -581,14 +585,16 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                                 Format format = new SimpleDateFormat("dd MMM yyyy");
                                 param.args[0] = strDays + " " + String.format( (String) XposedHelpers.callMethod(context, "getString", modR_strings_summary_starting), format.format(new Date(pref_cycleDate.getTimeInMillis())));
 
-                                return;
                             } catch (Exception ex) {
+                                XposedBridge.log("HOOK ERROR Preference.setSummary(): " + ex.getMessage());
+                                StackTraceElement[] elements = ex.getStackTrace();
+                                XposedBridge.log("HOOK ERROR Preference.setSummary(): at " + elements[0].getClassName() + "." + elements[0].getMethodName() + "() line: " + elements[0].getLineNumber());
                                 String dump=obj_dump(param.thisObject);
-                                if(DEBUG) XposedBridge.log("HOOK EX Preference.setSummary() objDUMP: Preferencev7 ");
+                                XposedBridge.log("HOOK ERROR Preference.setSummary() objDUMP: Dumping Preferencev7 ...");
                                 for (String item : dump.split(System.getProperty("line.separator"))) {
-                                    if(DEBUG) XposedBridge.log("HOOK EX Preference.setSummary() objDUMP: " + item);
+                                    XposedBridge.log("HOOK ERROR Preference.setSummary() objDUMP: " + item);
                                 }
-                                throw new Exception("HOOK EX Preference.setSummary() ERROR",ex);
+                                throw ex;
                             }
                         }
 
@@ -633,7 +639,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                                     break;
                                 case 31:  strDays = (String) XposedHelpers.callMethod(context, "getString", modR_strings_nr31_monthly);
                                     break;
-                                default: strDays = pref_cycleDays + " " + (String) XposedHelpers.callMethod(context, "getString", modR_strings_cycle_days);
+                                default: strDays = String.format((String) XposedHelpers.callMethod(context, "getString", modR_strings_cycle_days), Integer.toString(pref_cycleDays));
                                     break;
                             }
 
@@ -641,14 +647,16 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                             Object pref = XposedHelpers.getObjectField(param.thisObject, "mBillingCycle");
                             XposedHelpers.callMethod(pref, "setSummary", String.format((String) XposedHelpers.callMethod(context, "getString", modR_strings_cycle_detail), format.format(new Date(pref_cycleDate.getTimeInMillis())), format.format(new Date(pref_cycleDateEnd.getTimeInMillis())), strDays.toLowerCase() ));
 
-                            return;
                         } catch (Exception ex) {
+                            XposedBridge.log("HOOK ERROR BillingCycleSettings.updatePrefs(): " + ex.getMessage());
+                            StackTraceElement[] elements = ex.getStackTrace();
+                            XposedBridge.log("HOOK ERROR BillingCycleSettings.updatePrefs(): at " + elements[0].getClassName() + "." + elements[0].getMethodName() + "() line: " + elements[0].getLineNumber());
                             String dump=obj_dump(param.thisObject);
-                            if(DEBUG) XposedBridge.log("HOOK EX BillingCycleSettings.updatePrefs() objDUMP: BillingCycleSettings ");
+                            XposedBridge.log("HOOK ERROR BillingCycleSettings.updatePrefs() objDUMP: Dumping BillingCycleSettings ...");
                             for (String item : dump.split(System.getProperty("line.separator"))) {
-                                if(DEBUG) XposedBridge.log("HOOK EX BillingCycleSettings.updatePrefs() objDUMP: " + item);
+                                XposedBridge.log("HOOK ERROR BillingCycleSettings.updatePrefs() objDUMP: " + item);
                             }
-                            throw new Exception("HOOK EX BillingCycleSettings.updatePrefs() ERROR",ex);
+                            throw ex;
                         }
 
                     }
@@ -762,7 +770,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
         //get original cycleDayPicker (useless)
         final Object cycleDayPicker;
         if (Build.VERSION.SDK_INT == 23) {
-            cycleDayPicker = (NumberPicker) view.findViewById(R_id_cycle_day);
+            cycleDayPicker = view.findViewById(R_id_cycle_day);
         } else if (Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25) {
             XposedHelpers.setObjectField(param.thisObject, "mCycleDayPicker", view.findViewById(R_id_cycle_day));
             cycleDayPicker = XposedHelpers.getObjectField(param.thisObject, "mCycleDayPicker");
@@ -772,7 +780,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
         }
 
         //Get cycleDay
-        final Object args = (Object) XposedHelpers.callMethod(param.thisObject, "getArguments");
+        final Object args = XposedHelpers.callMethod(param.thisObject, "getArguments");
         final Object template = XposedHelpers.callMethod(args, "getParcelable", EXTRA_TEMPLATE );       //type NetworkTemplate
         final int cycleDay = (int) XposedHelpers.callMethod(editor, "getPolicyCycleDay", template);
 
@@ -793,17 +801,19 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
 
         //Set layout cycleDayPicker (useless)
         try {
-            if (DEBUG)
-                XposedBridge.log("HOOK createAdvDialog(): cycleDayPicker id = " + XposedHelpers.callMethod(cycleDayPicker, "getId") + " " + cycleDayPicker.getClass().toString());
+            if (DEBUG) XposedBridge.log("HOOK createAdvDialog(): cycleDayPicker id = " + XposedHelpers.callMethod(cycleDayPicker, "getId") + " " + cycleDayPicker.getClass().toString());
             XposedHelpers.callMethod(cycleDayPicker, "setMinValue", 1);
             XposedHelpers.callMethod(cycleDayPicker, "setMaxValue", 365);
             XposedHelpers.callMethod(cycleDayPicker, "setValue", cycleDay);
             XposedHelpers.callMethod(cycleDayPicker, "setWrapSelectorWheel", true);
         } catch (Exception ex) {
+            XposedBridge.log("HOOK ERROR createAdvDialog(): Updating cycleDayPicker - StackTrace: " + ex.getMessage());
+            StackTraceElement[] elements = ex.getStackTrace();
+            XposedBridge.log("HOOK ERROR createAdvDialog(): at " + elements[0].getClassName() + "." + elements[0].getMethodName() + "() line: " + elements[0].getLineNumber());
             String dump=obj_dump(cycleDayPicker);
-            if(DEBUG) XposedBridge.log("HOOK EX Updating cycleDayPicker... objDUMP: cycleDayPicker ");
+            XposedBridge.log("HOOK ERROR createAdvDialog(): objDUMP: Dumping cycleDayPicker ...");
             for (String item : dump.split(System.getProperty("line.separator"))) {
-                if(DEBUG) XposedBridge.log("HOOK EX cycleDayPicker objDUMP: " + item);
+                XposedBridge.log("HOOK ERROR createAdvDialog(): objDUMP: " + item);
             }
         }
 
@@ -861,10 +871,11 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
         }
 
         //Create Dialog & return
-        if (DEBUG) XposedBridge.log("HOOK onCreateDialog END!");
+        if (DEBUG) XposedBridge.log("HOOK onCreateDialog(): Completed!");
         return builder.create();
     }
 
+    //Encoding methods
     private static int encodeBitShiftedInt(DatePicker cycleDatePicker, NumberPicker cycleDaysPicker) {
         // Encode Day of Month, Month and Duration into one int
         // via BitShift method.
@@ -907,9 +918,10 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                     if(DEBUG) XposedBridge.log("HOOK BITSH preference year set to "+pref_cycleDate.get(Calendar.YEAR)+"");
                 }
                 if(bs3 != 0) pref_cycleDays = bs3; else { pref_cycleDays = 31; XposedBridge.log("HOOK ERR pref_cycleDays=0 - forced 31!"); }
-            } catch (ClassCastException e){
-                if(DEBUG) XposedBridge.log("HOOK BITSH REQ Error decoding bitshifted Ints :"+ e.toString() );
-                e.printStackTrace();
+            } catch (Exception ex){
+                XposedBridge.log("HOOK ERROR decodeBitShiftedInt(): " + ex.getMessage());
+                StackTraceElement[] elements = ex.getStackTrace();
+                XposedBridge.log("HOOK ERROR decodeBitShiftedInt(): at " + elements[0].getClassName() + "." + elements[0].getMethodName() + "() line: " + elements[0].getLineNumber());
             }
         }
 
@@ -934,7 +946,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
             if (subscriberId == null) {
                 XposedHelpers.callMethod(param.thisObject, "warn", "no subscriber id");
             }
-            if (DEBUG) XposedBridge.log("HOOK UI DataUsage: subscriberId :" + subscriberId + "");
+            if (DEBUG) XposedBridge.log("HOOK UI getAdvDataUsageInfo(): subscriberId :" + subscriberId + "");
             Object mTelephonyManager = XposedHelpers.getObjectField(param.thisObject, "mTelephonyManager");
             template = XposedHelpers.callStaticMethod(networkTemplate, "buildTemplateMobileAll", subscriberId);
             template = XposedHelpers.callStaticMethod(networkTemplate, "normalize", template, XposedHelpers.callMethod(mTelephonyManager, "getMergedSubscriberIds"));
@@ -971,14 +983,14 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
             final long callStart = System.currentTimeMillis();
             final Object entry = XposedHelpers.callMethod(history, "getValues", start, end, now, null);     //type NetworkStatsHistory.Entry
             final long callEnd = System.currentTimeMillis();
-            if (DEBUG) XposedBridge.log("HOOK UI DataUsage: History call from " +
+            if (DEBUG) XposedBridge.log("HOOK UI getAdvDataUsageInfo(): History call from " +
                     new Date(start) + " to " + new Date(end) + " now=" + new Date(now) + " took " + (callEnd - callStart) + ": " +
                     (String) XposedHelpers.callMethod(param.thisObject, "historyEntryToString", entry));
             if (entry == null) {
-                //return warn("no entry data");
-                if (DEBUG) XposedBridge.log("HOOK UI DataUsage: entry is null");
+                if (DEBUG) XposedBridge.log("HOOK UI getAdvDataUsageInfo(): entry is null");
+                return XposedHelpers.callMethod(param.thisObject, "warn", "no entry data");
             }
-            final long totalBytes = (long) XposedHelpers.getLongField(entry, "rxBytes") + (long) XposedHelpers.getLongField(entry, "txBytes");
+            final long totalBytes = XposedHelpers.getLongField(entry, "rxBytes") + XposedHelpers.getLongField(entry, "txBytes");
 
             //Create dataUsageInfo and return
             final Object usage = XposedHelpers.newInstance(dataUsageInfo);
@@ -986,8 +998,8 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
             XposedHelpers.setLongField(usage, "usageLevel", (long) totalBytes);
             XposedHelpers.setObjectField(usage, "period", (String) XposedHelpers.callMethod(param.thisObject, "formatDateRange", start, end));
             if (policy != null) {
-                XposedHelpers.setLongField(usage, "limitLevel", (long) XposedHelpers.getLongField(policy, "limitBytes") > 0 ? (long) XposedHelpers.getLongField(policy, "limitBytes") : 0);
-                XposedHelpers.setLongField(usage, "warningLevel", (long) XposedHelpers.getLongField(policy, "warningBytes") > 0 ? (long) XposedHelpers.getLongField(policy, "warningBytes") : 0);
+                XposedHelpers.setLongField(usage, "limitLevel", XposedHelpers.getLongField(policy, "limitBytes") > 0 ? XposedHelpers.getLongField(policy, "limitBytes") : 0);
+                XposedHelpers.setLongField(usage, "warningLevel", XposedHelpers.getLongField(policy, "warningBytes") > 0 ? XposedHelpers.getLongField(policy, "warningBytes") : 0);
             } else {
                 XposedHelpers.setLongField(usage, "warningLevel", 2L * 1024 * 1024 * 1024);
             }
@@ -995,11 +1007,11 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
             if (usage != null && mNetworkController != null) {
                 XposedHelpers.setObjectField(usage, "carrier", (String) XposedHelpers.callMethod(mNetworkController, "getMobileDataNetworkName"));
             }
-            if (DEBUG && usage != null)XposedBridge.log("HOOK UI DataUsage: usageLevel=" + XposedHelpers.getObjectField(usage, "usageLevel") + " period=" + XposedHelpers.getObjectField(usage, "period") + "");
+            if (DEBUG && usage != null)XposedBridge.log("HOOK UI getAdvDataUsageInfo(): usageLevel=" + XposedHelpers.getObjectField(usage, "usageLevel") + " period=" + XposedHelpers.getObjectField(usage, "period") + "");
 
             return usage;
         } catch (Exception e) {
-            if (DEBUG) XposedBridge.log("HOOK UI DataUsage: remote call failed StackTrace:" + Log.getStackTraceString(e));
+            if (DEBUG) XposedBridge.log("HOOK UI getAdvDataUsageInfo(): remote call failed StackTrace:" + Log.getStackTraceString(e));
             return XposedHelpers.callMethod(param.thisObject, "warn", "remote call failed");
         }
 
@@ -1074,7 +1086,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
         String newLine = System.getProperty("line.separator");
 
         result.append( obj.getClass().getName() );
-        result.append( "Object {" );
+        result.append( " Object {" );
         result.append(newLine);
 
         try {
