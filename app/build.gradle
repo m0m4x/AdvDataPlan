@@ -5,10 +5,10 @@ android {
     buildToolsVersion "25.0.2"
     defaultConfig {
         applicationId "net.m0m4x.android.xposed.advdataplan"
-        minSdkVersion 15
-        targetSdkVersion 23
-        versionCode 5
-        versionName "1.0.5"
+        minSdkVersion 23
+        targetSdkVersion 25
+        versionCode 6
+        versionName "1.0.6"
     }
     buildTypes {
         release {
