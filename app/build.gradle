@@ -1,12 +1,12 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 25
+    compileSdkVersion 27
     buildToolsVersion "25.0.2"
     defaultConfig {
         applicationId "net.m0m4x.android.xposed.advdataplan"
         minSdkVersion 23
-        targetSdkVersion 25
+        targetSdkVersion 27
         versionCode 6
         versionName "1.0.6"
     }

@@ -4,6 +4,7 @@ package net.m0m4x.android.xposed.advdataplan;
  */
 
 import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.DialogFragment;
@@ -14,6 +15,7 @@ import android.os.Build;
 import android.text.format.DateUtils;
 import android.text.format.Time;
 import android.util.Log;
+import android.util.Pair;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -30,6 +32,9 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.text.Format;
 import java.text.SimpleDateFormat;
+import java.time.LocalTime;
+import java.time.Period;
+import java.time.ZonedDateTime;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -274,50 +279,129 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                     "android.net.NetworkPolicy",
                     lpparam.classLoader);
 
-            findAndHookMethod(NetworkPolicyManager, "computeNextCycleBoundary", long.class , NetworkPolicy , new XC_MethodReplacement() {
+            if (Build.VERSION.SDK_INT == 26 || Build.VERSION.SDK_INT == 27) {
 
-                @Override
-                protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
-                    if(DEBUG) XposedBridge.log("HOOK REQ computeNextCycleBoundary(): (pkg:"+lpparam.packageName+")");
+                final Class<?> ZoneId = XposedHelpers.findClass(
+                        "java.time.ZoneId",
+                        lpparam.classLoader);
+                final Class<?> RecurrenceRule = XposedHelpers.findClass(
+                        "android.util.RecurrenceRule",
+                        lpparam.classLoader);
+                final Class<?> Clock = XposedHelpers.findClass(
+                        "java.time.Clock",
+                        lpparam.classLoader);
+                final Class<?> ZonedDateTime = XposedHelpers.findClass(
+                        "java.time.ZonedDateTime",
+                        lpparam.classLoader);
+                /*final Class<?> LocalTime = XposedHelpers.findClass(
+                        "java.time.LocalTime;",
+                        lpparam.classLoader);*/
+                final Class<?> Period = XposedHelpers.findClass(
+                        "java.time.Period",
+                        lpparam.classLoader);
 
-                    // Get Params
-                    long currentTime = (long) param.args[0];    // long currentTime
-                    Object policy = param.args[1];              // NetworkPolicy policy
-                    int cycle_day = (int) XposedHelpers.getObjectField(policy, "cycleDay");
+                findAndHookMethod(NetworkPolicy, "buildRule", int.class , ZoneId , new XC_MethodReplacement() {
 
-                    // Check
-                    if (cycle_day == CYCLE_NONE) {
-                        throw new IllegalArgumentException("Unable to compute boundary without cycleDay");
+                    @Override
+                    @TargetApi(27)
+                    protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+                        if(DEBUG) XposedBridge.log("HOOK REQ buildRule(): (pkg:"+lpparam.packageName+")");
+
+                        // Get Params
+                        int cycleDay = (int) param.args[0];
+                        Object cycleTimezone = (Object) param.args[1];              // ZoneId
+
+                        int cycle_none = XposedHelpers.getStaticIntField(NetworkPolicy, "CYCLE_NONE");
+                        if (cycleDay != cycle_none) {
+
+                            //Decode CycleDay
+                            Object[] decodedArr = decodeBitShiftedInt(cycleDay);
+                            Calendar pref_cycleDate = (Calendar) decodedArr[0];
+                            int pref_cycleDays = (int) decodedArr[1];
+
+                            //Get int of days
+                            int year = pref_cycleDate.get(Calendar.YEAR);
+                            int month = pref_cycleDate.get(Calendar.MONTH);
+                            int day = pref_cycleDate.get(Calendar.DAY_OF_MONTH);
+
+                            if(DEBUG) XposedBridge.log("HOOK REQ Cycle Date is "+year+" "+month+" "+day+" )");
+
+                            //Convert pref_cycleDate in ZonedDateTime
+                            //Object LocalTime_MIDNIGHT = XposedHelpers.getStaticField("", "MIDNIGHT");
+                            Object sClock = XposedHelpers.callStaticMethod(Clock, "systemDefaultZone"); //Clock
+                            Object now = XposedHelpers.callStaticMethod(ZonedDateTime, "now", sClock);  //ZonedDateTime
+                            now = XposedHelpers.callMethod(now, "withZoneSameInstant", cycleTimezone);
+                            now = XposedHelpers.callMethod(now, "toLocalDate");
+                            now = XposedHelpers.callMethod(now, "withYear", year);
+                            now = XposedHelpers.callMethod(now, "withMonth", month);
+                            //now = XposedHelpers.callMethod(now, "minusYears", 1);
+                            //now = XposedHelpers.callMethod(now, "withMonth", 1);
+                            //now = XposedHelpers.callMethod(now, "withDayOfMonth", day);
+                            now = XposedHelpers.callMethod(now, "withDayOfMonth", day);
+                            Object start = XposedHelpers.callStaticMethod(ZonedDateTime, "of", now, LocalTime.MIDNIGHT, cycleTimezone );
+
+                            //Convert pref_cycleDays to Period
+                            Object period = XposedHelpers.callStaticMethod(Period, "ofDays", pref_cycleDays);
+                            //Object period = XposedHelpers.callStaticMethod(Period, "ofMonths", 1);
+
+                            //Create Recurrence Rule
+                            return XposedHelpers.newInstance(RecurrenceRule , start, null, period );
+                        } else {
+                            return XposedHelpers.callStaticMethod(RecurrenceRule, "buildNever");
+                        }
+
                     }
 
-                    return mComputeNextCycleBoundary(currentTime, cycle_day);
+                });
 
-                }
+            } else {
 
-            });
+                findAndHookMethod(NetworkPolicyManager, "computeNextCycleBoundary", long.class , NetworkPolicy , new XC_MethodReplacement() {
 
-            findAndHookMethod(NetworkPolicyManager, "computeLastCycleBoundary", long.class , NetworkPolicy , new XC_MethodReplacement() {
+                    @Override
+                    protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+                        if(DEBUG) XposedBridge.log("HOOK REQ computeNextCycleBoundary(): (pkg:"+lpparam.packageName+")");
 
-                @Override
-                protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
-                    if(DEBUG) XposedBridge.log("HOOK REQ computeLastCycleBoundary(): (pkg:"+lpparam.packageName+")");
+                        // Get Params
+                        long currentTime = (long) param.args[0];    // long currentTime
+                        Object policy = param.args[1];              // NetworkPolicy policy
+                        int cycle_day = (int) XposedHelpers.getObjectField(policy, "cycleDay");
 
-                    // Get Params
-                    long currentTime = (long) param.args[0];    // long currentTime
-                    Object policy = param.args[1];              // NetworkPolicy policy
-                    int cycle_day = (int) XposedHelpers.getObjectField(policy, "cycleDay");
+                        // Check
+                        if (cycle_day == CYCLE_NONE) {
+                            throw new IllegalArgumentException("Unable to compute boundary without cycleDay");
+                        }
 
-                    // Need to Check policy template mobile? (otherwise do default)
+                        return mComputeNextCycleBoundary(currentTime, cycle_day);
 
-                    // Check
-                    if (cycle_day == CYCLE_NONE) {
-                        throw new IllegalArgumentException("Unable to compute boundary without cycleDay");
                     }
-                    return mComputeLastCycleBoundary(currentTime, cycle_day);
 
-                }
+                });
 
-            });
+                findAndHookMethod(NetworkPolicyManager, "computeLastCycleBoundary", long.class , NetworkPolicy , new XC_MethodReplacement() {
+
+                    @Override
+                    protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+                        if(DEBUG) XposedBridge.log("HOOK REQ computeLastCycleBoundary(): (pkg:"+lpparam.packageName+")");
+
+                        // Get Params
+                        long currentTime = (long) param.args[0];    // long currentTime
+                        Object policy = param.args[1];              // NetworkPolicy policy
+                        int cycle_day = (int) XposedHelpers.getObjectField(policy, "cycleDay");
+
+                        // Need to Check policy template mobile? (otherwise do default)
+
+                        // Check
+                        if (cycle_day == CYCLE_NONE) {
+                            throw new IllegalArgumentException("Unable to compute boundary without cycleDay");
+                        }
+                        return mComputeLastCycleBoundary(currentTime, cycle_day);
+
+                    }
+
+                });
+
+            }
 
         }
 
@@ -358,7 +442,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
             }
 
             //SDK24-25
-            if (Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25) {
+            if (Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25 || Build.VERSION.SDK_INT == 26 || Build.VERSION.SDK_INT == 27) {
                 final Class<?> CycleEditorFragment = XposedHelpers.findClass(
                         "com.android.settings.datausage.BillingCycleSettings.CycleEditorFragment",
                         lpparam.classLoader);
@@ -398,7 +482,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                             if (Build.VERSION.SDK_INT == 24) {
                                 Object services = XposedHelpers.getObjectField(target,"services");
                                 editor = XposedHelpers.getObjectField(services,"mPolicyEditor");
-                            } else if (Build.VERSION.SDK_INT == 25) {
+                            } else if (Build.VERSION.SDK_INT == 25 || Build.VERSION.SDK_INT == 26 || Build.VERSION.SDK_INT == 27) {
                                 editor = XposedHelpers.callMethod(target, "getNetworkPolicyEditor");
                             } else {
                                 XposedBridge.log("HOOK AdvDialog.onClick(): SDK "+Build.VERSION.SDK_INT+" not supported!");
@@ -673,6 +757,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
      */
 
     //Compute methods
+    //only for SDK<26
     private static long mComputeLastCycleBoundary(long currentTime, int cycleDay) {
         //Decode CycleDay
         Object[] decodedArr = decodeBitShiftedInt(cycleDay);
@@ -751,7 +836,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
         } else if (Build.VERSION.SDK_INT == 24) {
             Object services = XposedHelpers.getObjectField(target,"services");
             editor = XposedHelpers.getObjectField(services,"mPolicyEditor");
-        } else if (Build.VERSION.SDK_INT == 25) {
+        } else if (Build.VERSION.SDK_INT == 25 || Build.VERSION.SDK_INT == 26 || Build.VERSION.SDK_INT == 27) {
             editor = XposedHelpers.callMethod(target, "getNetworkPolicyEditor");
         } else {
             XposedBridge.log("HOOK createAdvDialog(): SDK "+Build.VERSION.SDK_INT+" not supported!");
@@ -771,7 +856,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
         final Object cycleDayPicker;
         if (Build.VERSION.SDK_INT == 23) {
             cycleDayPicker = view.findViewById(R_id_cycle_day);
-        } else if (Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25) {
+        } else if (Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25 || Build.VERSION.SDK_INT == 26 || Build.VERSION.SDK_INT == 27) {
             XposedHelpers.setObjectField(param.thisObject, "mCycleDayPicker", view.findViewById(R_id_cycle_day));
             cycleDayPicker = XposedHelpers.getObjectField(param.thisObject, "mCycleDayPicker");
         } else {
@@ -864,7 +949,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
 
                         }
                     });
-        } else if (Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25) {
+        } else if (Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25 || Build.VERSION.SDK_INT == 26 || Build.VERSION.SDK_INT == 27) {
             XposedHelpers.setAdditionalStaticField(param.thisObject,"mCycleDatePicker",cycleDatePicker);
             XposedHelpers.setAdditionalStaticField(param.thisObject,"mCycleDaysPicker",cycleDaysPicker);
             builder.setPositiveButton("OK", (DialogInterface.OnClickListener) param.thisObject);
@@ -978,6 +1063,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                 end = now;
                 start = now - DateUtils.WEEK_IN_MILLIS * 4;
             }
+
 
             //Formatting and finalize values
             final long callStart = System.currentTimeMillis();
