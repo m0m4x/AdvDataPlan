@@ -15,6 +15,7 @@ import android.os.Build;
 import android.text.format.DateUtils;
 import android.text.format.Time;
 import android.util.Log;
+import android.util.Pair;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -54,7 +55,7 @@ import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
 
 public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageResources, IXposedHookLoadPackage {
 
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = BuildConfig.enableDebug;
 
     /****************************
         RESOURCES Hooking
@@ -483,7 +484,6 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
 
                         try {
                             return createAdvDialog(param);
-
                         } catch (Exception ex) {
                             XposedBridge.log("HOOK ERROR createAdvDialog(): " + ex.getMessage());
                             StackTraceElement[] elements = ex.getStackTrace();
@@ -647,7 +647,6 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
             System UI - Settings App - Billing Cycle preview
             only in SDK 24-25-26-27
          */
-
         if (Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25 || Build.VERSION.SDK_INT == 26 || Build.VERSION.SDK_INT == 27 ) {
             if(   false||   lpparam.packageName.equals("com.android.settings")
                        ||   lpparam.packageName.equals("com.android.settings.datausage")
@@ -661,6 +660,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                         lpparam.classLoader);
                 findAndHookMethod(Preferencev7, "setSummary", CharSequence.class, new XC_MethodHook() {
                     @Override
+                    @TargetApi(26)
                     protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                         if (DEBUG)XposedBridge.log("HOOK UI Preference.setSummary(): class "+param.thisObject.getClass().getName().toString()+" (pkg:" + lpparam.packageName + ")");
 
@@ -672,7 +672,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
 
                                 //Get CycleDay
                                 int cycleDay = 1;
-                                if (Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 26) {
+                                if (Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25) {
                                     //SDK 24-25
                                     Object policy = XposedHelpers.getObjectField(param.thisObject, "mPolicy");
                                     if (policy != null)
@@ -1097,7 +1097,14 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
 
         return new Object[] {pref_cycleDate, pref_cycleDays};
     }
-        
+
+    public static String humanReadableByteCount(long bytes, boolean si) {
+        int unit = si ? 1000 : 1024;
+        if (bytes < unit) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(unit));
+        String pre = (si ? "kMGTPE" : "KMGTPE").charAt(exp-1) + (si ? "" : "i");
+        return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
+    }
 
     //Status Bar methods
     @TargetApi(26)
