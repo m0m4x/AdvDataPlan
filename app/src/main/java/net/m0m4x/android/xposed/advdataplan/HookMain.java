@@ -574,14 +574,9 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
 
             if(DEBUG) XposedBridge.log("HOOK SystemUI methods! (pkg:"+lpparam.packageName+")!");
 
-            //SDK22
-            // Lollipop not supported
-            //    CLASS_MOBILE_DATA_CONTROLLER_23 = "com.android.systemui.statusbar.policy.MobileDataControllerImpl";
-            //    CLASS_MOBILE_DATA_CONTROLLER_22 = "com.android.systemui.statusbar.policy.MobileDataController";
-            //    Build.VERSION.SDK_INT >= 22 ? CLASS_MOBILE_DATA_CONTROLLER_23 : CLASS_MOBILE_DATA_CONTROLLER_22;
-
+            //SDK21-22 testing
             //SDK23
-            if (Build.VERSION.SDK_INT == 23) {
+            if (Build.VERSION.SDK_INT == 21 || Build.VERSION.SDK_INT == 22 || Build.VERSION.SDK_INT == 23) {
                 final Class<?> MobileDataController = XposedHelpers.findClassIfExists(
                         "com.android.systemui.statusbar.policy.MobileDataControllerImpl",
                         lpparam.classLoader);
@@ -1118,16 +1113,18 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
 
         //Get Template
         Object template = null;
-        if(Build.VERSION.SDK_INT == 23) {
+        if(Build.VERSION.SDK_INT == 21 || Build.VERSION.SDK_INT == 22 || Build.VERSION.SDK_INT == 23) {
             final Context context = (Context) XposedHelpers.getObjectField(param.thisObject, "mContext");
             final String subscriberId = (String) XposedHelpers.callMethod(param.thisObject, "getActiveSubscriberId", context);   //String
             if (subscriberId == null) {
                 XposedHelpers.callMethod(param.thisObject, "warn", "no subscriber id");
             }
-            if (DEBUG) XposedBridge.log("HOOK UI getAdvDataUsageInfo(): subscriberId :" + subscriberId + "");
-            Object mTelephonyManager = XposedHelpers.getObjectField(param.thisObject, "mTelephonyManager");
-            template = XposedHelpers.callStaticMethod(networkTemplate, "buildTemplateMobileAll", subscriberId);
-            template = XposedHelpers.callStaticMethod(networkTemplate, "normalize", template, XposedHelpers.callMethod(mTelephonyManager, "getMergedSubscriberIds"));
+            if(Build.VERSION.SDK_INT != 21) {
+                if (DEBUG) XposedBridge.log("HOOK UI getAdvDataUsageInfo(): subscriberId :" + subscriberId + "");
+                Object mTelephonyManager = XposedHelpers.getObjectField(param.thisObject, "mTelephonyManager");
+                template = XposedHelpers.callStaticMethod(networkTemplate, "buildTemplateMobileAll", subscriberId);
+                template = XposedHelpers.callStaticMethod(networkTemplate, "normalize", template, XposedHelpers.callMethod(mTelephonyManager, "getMergedSubscriberIds"));
+            }
         }
         else if(Build.VERSION.SDK_INT == 24 || Build.VERSION.SDK_INT == 25 || Build.VERSION.SDK_INT == 26 || Build.VERSION.SDK_INT == 27) {
             template = param.args[0];
@@ -1208,7 +1205,7 @@ public class HookMain implements IXposedHookZygoteInit, IXposedHookInitPackageRe
                 XposedHelpers.setLongField(usage, "warningLevel", 2L * 1024 * 1024 * 1024);
             }
             Object mNetworkController = XposedHelpers.getObjectField(param.thisObject, "mNetworkController");
-            if (usage != null && mNetworkController != null) {
+            if (usage != null && mNetworkController != null && Build.VERSION.SDK_INT != 21 ) {
                 XposedHelpers.setObjectField(usage, "carrier", (String) XposedHelpers.callMethod(mNetworkController, "getMobileDataNetworkName"));
             }
             if (DEBUG && usage != null)XposedBridge.log("HOOK UI getAdvDataUsageInfo(): usageLevel=" + XposedHelpers.getObjectField(usage, "usageLevel") + " period=" + XposedHelpers.getObjectField(usage, "period") + "");
